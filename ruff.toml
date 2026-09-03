@@ -1,2 +1,2 @@
 extend = "backend/ruff.toml"
-cache-dir = "backend/.ruff_cache"
+cache-dir = "backend/cache/.ruff_cache"
