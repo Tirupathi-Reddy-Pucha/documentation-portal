@@ -4,7 +4,7 @@ import os
 import shutil
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import uvicorn
 
@@ -229,7 +229,7 @@ def _create_token(username: str, role: str) -> str:
     payload = {
         "sub": username,
         "role": role,
-        "exp": datetime.utcnow() + timedelta(minutes=_JWT_EXPIRE),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=_JWT_EXPIRE),
     }
     return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
