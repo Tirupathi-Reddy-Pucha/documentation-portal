@@ -1,6 +1,6 @@
 /**
  * 🌐 CORE API LAYER
- * Handles all backend communication for CurriculumLens.
+ * Handles all backend communication for MACH AI (M.A.C.H. - Multimodel Academic Cognitive Hub).
  * Designed to act as an interceptor for injecting auth tokens natively without external libraries.
  */
 

@@ -496,7 +496,7 @@ async def generate_answer(question: str, context: str) -> str:
     PostgreSQL and Neo4j, and asks the large LLM to write a helpful answer.
     """
     prompt = f"""
-You are CurriculumLens, an academic AI assistant for university students.
+You are MACH AI (M.A.C.H. - Multimodel Academic Cognitive Hub - A Fine-tuned Graph-RAG framework for Campus Knowledge Systems), an academic AI assistant for university students.
 Answer the student's question using ONLY the information provided in the Context below.
 If the student asks for questions on a topic (e.g. PYQs or exam questions), list ALL available matching questions provided in the Context across all documents. Do not omit any question.
 
@@ -538,7 +538,7 @@ async def generate_answer_stream(question: str, context: str):
     Streams the AI response chunk by chunk as it generates.
     """
     prompt = f"""
-You are CurriculumLens, an academic AI assistant for university students.
+You are MACH AI (M.A.C.H. - Multimodel Academic Cognitive Hub - A Fine-tuned Graph-RAG framework for Campus Knowledge Systems), an academic AI assistant for university students.
 Answer the student's question using ONLY the information provided in the Context below.
 If the student asks for questions on a topic (e.g. PYQs or exam questions), list ALL available matching questions provided in the Context across all documents. Do not omit any question.
 

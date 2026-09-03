@@ -1,6 +1,6 @@
 {
-  "name": "M.A.C.H.",
-  "short_name": "M.A.C.H.",
+  "name": "M.A.C.H. - Multimodel Academic Cognitive Hub - A Fine-tuned Graph-RAG framework for Campus Knowledge Systems",
+  "short_name": "MACH AI",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#0E0E0E",

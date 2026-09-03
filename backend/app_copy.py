@@ -130,8 +130,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# Initialize the FastAPI application
-app = FastAPI(title="CurriculumLens Backend", lifespan=lifespan)
+app = FastAPI(
+    title="M.A.C.H. - Multimodel Academic Cognitive Hub",
+    description="A Fine-tuned Graph-RAG framework for Campus Knowledge Systems (MACH AI)",
+    lifespan=lifespan,
+)
 
 from fastapi.middleware.gzip import GZipMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
