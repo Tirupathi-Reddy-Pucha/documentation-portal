@@ -1,23 +1,23 @@
-import os
 import datetime
+import os
 import uuid
 
 # python-dotenv is used to load configuration variables from a .env file
 from dotenv import load_dotenv
 
-# SQLAlchemy is our Object-Relational Mapper (ORM). It lets us interact with
-# PostgreSQL using Python classes instead of raw SQL queries.
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, String, Text, DateTime, Index
-from sqlalchemy.dialects.postgresql import UUID
+# Neo4j is our Graph Database. We use it to store concepts and their relationships.
+from neo4j import GraphDatabase
 
 # pgvector is a PostgreSQL extension that allows us to store and search
 # mathematical vectors (embeddings) directly in the database.
 from pgvector.sqlalchemy import Vector
+from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 
-# Neo4j is our Graph Database. We use it to store concepts and their relationships.
-from neo4j import GraphDatabase
+# SQLAlchemy is our Object-Relational Mapper (ORM). It lets us interact with
+# PostgreSQL using Python classes instead of raw SQL queries.
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 # -----------------------------------------------------------------------------
 # Configuration Loading
@@ -25,19 +25,19 @@ from neo4j import GraphDatabase
 # Load environment variables from the .env file located at the project root.
 # os.path.dirname(__file__) gives us the 'backend/' folder.
 # '..' moves us one level up to the root folder where '.env' is located.
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
+load_dotenv(
+    dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"), override=True
+)
 
 
-# =============================================================================
 # 1. PostgreSQL Setup — Stores document metadata and vector embeddings
-# =============================================================================
 
 # Fetch database credentials from environment variables, providing safe defaults
-POSTGRES_USER     = os.getenv("POSTGRES_USER",     "cluser")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "cluser")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "clpassword")
-POSTGRES_HOST     = os.getenv("POSTGRES_HOST",     "127.0.0.1")
-POSTGRES_PORT     = os.getenv("POSTGRES_PORT",     "5434")
-POSTGRES_DB       = os.getenv("POSTGRES_DB",       "curriculumlens")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5434")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "curriculumlens")
 
 # Construct the connection string required by SQLAlchemy
 DATABASE_URL = (
@@ -59,34 +59,29 @@ Base = declarative_base()
 # Database Models (Tables)
 # -----------------------------------------------------------------------------
 
+
 class Document(Base):
     """
     Represents an uploaded PDF document.
     Table name: documents
     """
+
     __tablename__ = "documents"
-    
+
     # Primary key: A unique identifier for every document
-    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # The original name of the uploaded file
-    filename    = Column(String,   nullable=False)
+    filename = Column(String, nullable=False)
     # The type of document ("syllabus" or "pyq")
-    doc_type    = Column(String,   nullable=False, default="pyq")
+    doc_type = Column(String, nullable=False, default="pyq")
     # The department (for syllabus docs, e.g., "CSE")
-    department  = Column(String,   nullable=True)
+    department = Column(String, nullable=True)
     # The year of the syllabus (for syllabus docs, e.g., "2023")
-    year        = Column(String,   nullable=True)
+    year = Column(String, nullable=True)
     # The academic course code associated with this document (e.g., CSE101)
-    course_code = Column(String,   nullable=True)
+    course_code = Column(String, nullable=True)
     # Timestamp of when the document was uploaded
-    created_at  = Column(DateTime, default=datetime.datetime.utcnow)
-    # Processing pipeline status:
-    #   pending            → queued, not yet started
-    #   processing         → background task is running
-    #   completed          → all stages succeeded (questions, embeddings, images, topic mapping)
-    #   partially_completed → at least one question saved but some stages had failures/skips
-    #   failed             → fatal error; no questions saved
-    processing_status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class DocumentChunk(Base):
@@ -94,24 +89,39 @@ class DocumentChunk(Base):
     Represents a specific paragraph or section of text extracted from a document.
     Table name: document_chunks
     """
+
     __tablename__ = "document_chunks"
-    
+
     # Primary key: A unique identifier for this specific chunk
-    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Foreign key-like relationship to the parent Document
     document_id = Column(UUID(as_uuid=True), nullable=False)
     # The actual text content of this chunk
-    content     = Column(Text,   nullable=False)
+    content = Column(Text, nullable=False)
     # The course code, duplicated here for easier querying
     course_code = Column(String, nullable=True)
-    
+
     # Marks whether this chunk was extracted as plain text or described from a visual
     # element (equation, diagram, circuit) by the vision model. Values: "text" or "visual".
     content_type = Column(String, default="text")
 
     # The vector embedding representing the semantic meaning of the text content.
     # The dimension is 768 to perfectly match the output of the 'nomic-embed-text' model.
-    embedding   = Column(Vector(768), nullable=True)
+    embedding = Column(Vector(768), nullable=True)
+
+
+class ProcessingReport(Base):
+    """
+    Stores per-document PYQ extraction and mapping audit report as a JSON payload.
+    Table name: processing_reports
+    """
+    __tablename__ = "processing_reports"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    course_code = Column(String, nullable=True)
+    report_json = Column(Text, nullable=False, default="{}")
+    created_at  = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Fast Approximate Nearest Neighbor (ANN) index for vector similarity search
     # We use vector_cosine_ops for cosine similarity matching
@@ -158,17 +168,16 @@ async def get_db():
         yield session
 
 
-# =============================================================================
 # 2. Neo4j Setup — Stores the Curriculum Knowledge Graph
-# =============================================================================
 
 # Fetch Neo4j connection details from environment variables
-NEO4J_URI      = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
-NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "clpassword")
 
 # Create a single, shared driver instance to communicate with the Neo4j database
 neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+
 
 def get_neo4j():
     """

@@ -7,6 +7,8 @@ dist/
 build/
 venv/
 .venv/
+backend/cache/
+.ruff_cache/
 
 # ── Data ──
 backend/uploads/
@@ -22,7 +24,6 @@ uploads/
 .vscode/
 .idea/
 *.swp
-.DS_Store
 
 # ── Node.js (Frontend) ──
 node_modules/

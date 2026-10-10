@@ -1,5 +1,5 @@
 <!--
-  ~ 🎓 Student Dashboard - CurriculumLens
+  ~ 🎓 Student Dashboard - MACH AI (M.A.C.H. - Multimodel Academic Cognitive Hub)
   ~ The primary interface for interacting with our RAG (Retrieval-Augmented Generation) AI.
   ~ Features streaming responses, Voice AI integration, and robust a11y support.
 -->
@@ -8,11 +8,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CurriculumLens — Chat</title>
+<title>MACH AI — Chat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="src/css/main.css">
-<link rel="stylesheet" href="src/css/pages/student.css">
+<link rel="stylesheet" href="css/main.css?v=2">
+<link rel="stylesheet" href="css/page_student.css?v=2">
 <!-- DOMPurify to prevent XSS attacks -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <!-- Marked.js for robust markdown parsing -->
@@ -75,13 +75,6 @@
 
       <!-- Input Bar -->
       <div class="chat-input-area">
-        <div id="image-preview-container" style="display: none; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem; color: #ccc;">
-          <img id="image-preview-thumb" src="" alt="preview" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">
-          <span id="image-preview-name" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
-          <button onclick="window.clearImagePreview()" style="background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;" title="Remove image">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-        </div>
         <div class="input-wrap">
           <textarea class="chat-ta" id="chat-input" rows="1" placeholder="Ask about your syllabus, PYQs, or any topic…"></textarea>
           <div class="input-btns">
@@ -105,6 +98,6 @@
 
   </div>
 </div>
-<script type="module" src="src/js/pages/student.js?v=2"></script>
+<script type="module" src="js/page_student.js?v=2"></script>
 </body>
 </html>

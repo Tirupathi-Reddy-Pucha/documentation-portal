@@ -1,5 +1,5 @@
 <!--
-  ~ 🎓 Admin Dashboard - CurriculumLens
+  ~ 🎓 Admin Dashboard - MACH AI (M.A.C.H. - Multimodel Academic Cognitive Hub)
   ~ Secured management interface for curriculum vectors and analytics.
   ~ Built with a focus on data visualization and secure API interactions.
 -->
@@ -8,11 +8,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Dashboard — CurriculumLens</title>
+<title>Admin Dashboard — MACH AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="src/css/main.css">
-<link rel="stylesheet" href="src/css/pages/admin.css">
+<link rel="stylesheet" href="css/main.css?v=2">
+<link rel="stylesheet" href="css/page_admin.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="manifest" href="./manifest.json">
 <script>
@@ -44,21 +44,6 @@
         <span class="nl">Evaluation</span>
         <span class="ni"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
       </button>
-
-      <div class="admin-nav-section-label" style="margin-top:10px;">Graph RAG</div>
-      <button class="a-nav-item" onclick="window.adminNav(this,'curriculum-review')">
-        <span class="nl">Curriculum Review</span>
-        <span class="ni"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
-      </button>
-      <button class="a-nav-item" onclick="window.adminNav(this,'pyq-diagnostics')">
-        <span class="nl">PYQ Diagnostics</span>
-        <span class="ni"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-      </button>
-      <button class="a-nav-item" onclick="window.adminNav(this,'topic-mappings')">
-        <span class="nl">Topic Mappings</span>
-        <span class="ni"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
-      </button>
-
       <div class="admin-nav-section-label" style="margin-top:10px;">System</div>
       <button class="a-nav-item" onclick="window.adminNav(this,'settings')">
         <span class="nl">Settings</span>
@@ -96,19 +81,11 @@
           <div class="asc-label">Documents indexed</div>
         </div>
         <div class="admin-stat-card">
-          <div class="asc-val" id="stat-questions">—</div>
-          <div class="asc-label">Questions (distinct)</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="asc-val" id="stat-topic-mapped">—</div>
-          <div class="asc-label">Topic-mapped questions</div>
-        </div>
-        <div class="admin-stat-card">
           <div class="asc-val" id="stat-mean">—</div>
           <div class="asc-label">Mean RAGAS score</div>
         </div>
         <div class="admin-stat-card">
-          <div class="asc-val">v2.0</div>
+          <div class="asc-val">v1.0</div>
           <div class="asc-label">Pipeline version</div>
         </div>
       </div>
@@ -124,9 +101,9 @@
         </div>
         <div class="docs-table-wrap">
           <table class="docs-table">
-            <thead><tr><th>Course Code</th><th>Type</th><th>Filename</th><th>Uploaded</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Course Code</th><th>Type</th><th>Filename</th><th>Uploaded</th><th></th></tr></thead>
             <tbody id="documents-table-body">
-              <tr><td colspan="6" style="text-align:center;color:var(--text-4);padding:20px;">Loading…</td></tr>
+              <tr><td colspan="5" style="text-align:center;color:var(--text-4);padding:20px;">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -245,131 +222,28 @@
       </div>
     </div>
 
-    <!-- ============================================================ -->
-    <!-- Curriculum Review Panel                                       -->
-    <!-- ============================================================ -->
-    <div id="section-curriculum-review" style="display:none;">
+    <div id="section-settings" style="display: none;">
+      <!-- Danger Zone -->
       <div class="panel">
         <div class="panel-head">
           <div class="panel-head-left">
-            <h3>Curriculum Review</h3>
-            <p>Inspect and approve extracted Topics for each course unit</p>
+            <h3>System Settings</h3>
+            <p>Destructive actions — use with caution</p>
           </div>
-          <span class="panel-tag">Extraction</span>
+          <span class="panel-tag" style="background:#FFF5F5;color:#B91C1C;border-color:#F5C6CB;">Danger</span>
         </div>
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-          <select id="cr-course-select" style="min-width:220px;" onchange="window.loadCurriculumReview()">
-            <option value="">Select course…</option>
-          </select>
-          <button class="btn-upload" id="cr-approve-all-btn"
-            style="height:36px;font-size:13px;display:none;"
-            onclick="window.approveAllTopics()">
-            Approve All Topics
-          </button>
+        <div class="danger-zone">
+          <h4>⚠ Reset Entire System</h4>
+          <p>This will permanently delete ALL documents, ALL knowledge graph data, ALL uploaded files, and ALL chat history. This action cannot be undone.</p>
+          <button class="btn-danger" id="reset-btn" onclick="window.resetSystem()">Reset Everything</button>
         </div>
-        <div id="cr-content">
-          <p style="color:var(--text-4);font-size:13px;">Select a course to begin review.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- PYQ Diagnostics Panel                                         -->
-    <!-- ============================================================ -->
-    <div id="section-pyq-diagnostics" style="display:none;">
-      <div class="panel">
-        <div class="panel-head">
-          <div class="panel-head-left">
-            <h3>PYQ Diagnostics</h3>
-            <p>Per-course question breakdown with mapping and skip details</p>
-          </div>
-          <span class="panel-tag">Diagnostics</span>
-        </div>
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-          <select id="pyq-course-select" style="min-width:220px;" onchange="window.loadPYQDiagnostics()">
-            <option value="">Select course…</option>
-          </select>
-        </div>
-
-        <!-- Summary stats -->
-        <div id="pyq-diag-summary" class="admin-stats-row" style="display:none;margin-bottom:16px;">
-          <div class="admin-stat-card">
-            <div class="asc-val" id="pyq-stat-total">—</div>
-            <div class="asc-label">Total questions</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="asc-val" id="pyq-stat-co">—</div>
-            <div class="asc-label">CO-mapped</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="asc-val" id="pyq-stat-topic">—</div>
-            <div class="asc-label">Topic-mapped</div>
-          </div>
-          <div class="admin-stat-card">
-            <div class="asc-val" id="pyq-stat-docs">—</div>
-            <div class="asc-label">Source docs</div>
-          </div>
-        </div>
-
-        <!-- Confidence histogram -->
-        <div id="pyq-histogram-wrap" style="max-width:480px;margin-bottom:20px;display:none;">
-          <canvas id="pyq-confidence-chart" height="160"></canvas>
-        </div>
-
-        <!-- Questions table -->
-        <div class="docs-table-wrap">
-          <table class="docs-table" id="pyq-questions-table">
-            <thead>
-              <tr>
-                <th>Q#</th><th>Question</th><th>Marks</th><th>BTL</th>
-                <th>CO</th><th>Mapped Topic</th><th>Confidence</th><th>Image</th>
-              </tr>
-            </thead>
-            <tbody id="pyq-questions-body">
-              <tr><td colspan="8" style="text-align:center;color:var(--text-4);padding:20px;">Select a course above.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- Topic Mappings Panel                                          -->
-    <!-- ============================================================ -->
-    <div id="section-topic-mappings" style="display:none;">
-      <div class="panel">
-        <div class="panel-head">
-          <div class="panel-head-left">
-            <h3>Topic Mappings</h3>
-            <p>Review and approve TESTS_TOPIC relationships</p>
-          </div>
-          <span class="panel-tag">Graph RAG</span>
-        </div>
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-          <select id="tm-course-select" style="min-width:220px;" onchange="window.loadTopicMappings()">
-            <option value="">Select course…</option>
-          </select>
-        </div>
-        <div class="docs-table-wrap">
-          <table class="docs-table">
-            <thead>
-              <tr>
-                <th>Question</th><th>→ Topic</th>
-                <th>Sem.</th><th>KW</th><th>Conf.</th>
-                <th>Status</th><th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tm-mappings-body">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-4);padding:20px;">Select a course above.</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <div id="reset-status" style="margin-top:12px;font-size:13px;color:var(--text-3);"></div>
       </div>
     </div>
 
   </main>
 </div>
-<script type="module" src="src/js/pages/admin.js"></script>
+<script type="module" src="js/page_admin.js?v=2"></script>
 </body>
 </html>
 

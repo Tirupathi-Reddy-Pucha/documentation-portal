@@ -1,0 +1,8 @@
+@import url('./variables.css');
+@import url('./base.css');
+@import url('./components.css');
+@import url('./layout.css');
+
+/* Page specific styles are imported directly in their respective HTML files
+   or they can be imported here if you prefer a single CSS bundle.
+   For modularity, we'll keep them separate in the HTML. */

@@ -1,0 +1,23 @@
+/* Top Navigation Bar */
+.top-nav {
+  height: var(--topnav-h); background: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: center;
+  flex-shrink: 0; box-shadow: var(--shadow-xs); z-index: 20;
+}
+.nav-brand {
+  width: var(--sidebar-w); height: 100%; flex-shrink: 0;
+  display: flex; align-items: center; padding: 0 22px;
+  border-right: 1px solid var(--border-soft);
+}
+.nav-logo { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: var(--brand); letter-spacing: -1px; }
+.nav-logo sub { font-size: 9px; font-weight: 500; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; margin-left: 3px; }
+.nav-mid { flex: 1; padding: 0 22px; }
+.nav-context { font-size: 13px; color: var(--text-3); }
+.nav-context strong { color: var(--text); font-weight: 500; }
+.nav-right { display: flex; align-items: center; gap: 10px; padding-right: 20px; }
+
+/* Responsive adjustments for layout */
+@media(max-width: 900px) {
+  .nav-brand { width: auto; border-right: none; }
+}

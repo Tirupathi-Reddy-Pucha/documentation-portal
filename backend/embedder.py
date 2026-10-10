@@ -1,20 +1,24 @@
-import os
-import json
-import math
+"""
+embedder.py — Cached, retry-safe embedding wrapper around Ollama nomic-embed-text.
+LRUCache(2000) prevents re-embedding the same text across requests.
+"""
 import asyncio
-import httpx
-from typing import List, Optional, Dict
+import math
+import os
 from collections import OrderedDict
+from typing import List, Optional
+
+import httpx
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"), override=True)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_EMBED_BASE_URL = os.getenv("OLLAMA_EMBED_BASE_URL", "http://localhost:11434")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
+
 class LRUCache:
-    def __init__(self, capacity: int = 1000):
+    def __init__(self, capacity: int = 2000):
         self.cache = OrderedDict()
         self.capacity = capacity
 
@@ -31,33 +35,28 @@ class LRUCache:
         if len(self.cache) > self.capacity:
             self.cache.popitem(last=False)
 
-# Global embedding cache
-embedding_cache = LRUCache(capacity=2000)
 
+embedding_cache = LRUCache(capacity=2000)
 _embed_semaphore = asyncio.Semaphore(1)
 
+
 async def embed_text(text: str, max_retries: int = 5) -> List[float]:
-    """
-    Fetch a 768-dimensional embedding via Ollama (nomic-embed-text).
-    Uses an in-memory LRU cache to prevent re-embedding the same text.
-    Implements retry logic to handle fragile Colab/ngrok connections.
-    """
+    """Embed text via Ollama with LRU cache and exponential backoff."""
     if not text or not text.strip():
         return []
-
-    # Check cache first
     cached = embedding_cache.get(text)
     if cached is not None:
         return cached
-
     async with _embed_semaphore:
         for attempt in range(max_retries):
             try:
-                async with httpx.AsyncClient(headers={"ngrok-skip-browser-warning": "true"}) as client:
+                async with httpx.AsyncClient(
+                    headers={"ngrok-skip-browser-warning": "true"}
+                ) as client:
                     resp = await client.post(
-                        f"{OLLAMA_EMBED_BASE_URL}/api/embeddings",
+                        f"{OLLAMA_BASE_URL}/api/embeddings",
                         json={"model": OLLAMA_EMBED_MODEL, "prompt": text},
-                        timeout=30.0
+                        timeout=30.0,
                     )
                     resp.raise_for_status()
                     embedding = resp.json().get("embedding", [])
@@ -70,33 +69,27 @@ async def embed_text(text: str, max_retries: int = 5) -> List[float]:
                     print(f"[Embedder] Rate-limited (403). Waiting {wait}s...")
                     await asyncio.sleep(wait)
                 else:
-                    print(f"[Embedder] Attempt {attempt+1}/{max_retries} failed: {e}")
                     if attempt < max_retries - 1:
                         await asyncio.sleep(1.0 * (attempt + 1))
                     else:
-                        print(f"[Embedder] All retries failed for embedding: {text[:50]}...")
+                        print(f"[Embedder] All retries failed: {text[:50]}...")
                         return []
             except Exception as e:
                 print(f"[Embedder] Attempt {attempt+1}/{max_retries} failed: {e}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(1.0 * (attempt + 1))  # exponential backoff
+                    await asyncio.sleep(1.0 * (attempt + 1))
                 else:
-                    print(f"[Embedder] All retries failed for embedding: {text[:50]}...")
                     return []
-        return []
+    return []
 
-async def embed_batch(texts: List[str], max_retries: int = 3) -> List[List[float]]:
-    """
-    Embed a batch of texts sequentially using the cache and retries.
-    """
-    results = []
-    for text in texts:
-        emb = await embed_text(text, max_retries)
-        results.append(emb)
-    return results
+
+async def embed_batch(texts: List[str]) -> List[List[float]]:
+    """Embed a batch of texts sequentially using the cache."""
+    return [await embed_text(t) for t in texts]
+
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
-    """Compute cosine similarity between two vectors."""
+    """Cosine similarity between two vectors."""
     if not a or not b or len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))

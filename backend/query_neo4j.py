@@ -1,4 +1,70 @@
-from neo4j import GraphDatabase
+import json
+from embedder import embed_text, cosine_similarity
+
+async def fetch_problems_by_topic_graph(neo4j_driver, topic: str) -> list[dict]:
+    """
+    PRIMARY Graph RAG retrieval: semantic Topic embedding -> TESTS_TOPIC traversal.
+    Falls back to string-match on Topic.name if no embedding hits found.
+    Returns [] when no TESTS_TOPIC edges exist yet (topic mapper not run).
+    """
+    topic_ids = []
+    topic_emb = await embed_text(topic)
+    if topic_emb:
+        with neo4j_driver.session() as session:
+            result = session.run(
+                "MATCH (t:Topic) WHERE t.embedding IS NOT NULL "
+                "RETURN t.id AS id, t.embedding AS emb"
+            )
+            candidates = []
+            for r in result:
+                try:
+                    t_emb = json.loads(r["emb"])
+                    sim = cosine_similarity(topic_emb, t_emb)
+                    if sim >= 0.65:
+                        candidates.append((sim, r["id"]))
+                except Exception:
+                    pass
+            if candidates:
+                candidates.sort(key=lambda x: x[0], reverse=True)
+                topic_ids = [tid for _, tid in candidates[:3]]
+
+    with neo4j_driver.session() as session:
+        if topic_ids:
+            result = session.run(
+                """
+                MATCH (t:Topic) WHERE t.id IN $topic_ids
+                MATCH (q:Question)-[r:TESTS_TOPIC]->(t)
+                WHERE r.review_status IN ['approved', 'pending_review']
+                RETURN q.id AS id, q.question_number AS question_number,
+                       q.text AS text, q.marks AS marks, q.btl AS btl,
+                       q.image_url AS image_url, q.course_code AS course_code,
+                       t.name AS topic_name, r.confidence AS mapping_confidence
+                ORDER BY mapping_confidence DESC, toInteger(question_number) ASC
+                """,
+                topic_ids=topic_ids,
+            )
+            data = result.data()
+            if data:
+                return data
+
+        # String-match fallback on Topic.name
+        result = session.run(
+            """
+            MATCH (t:Topic)
+            WHERE toLower(t.name) CONTAINS toLower($topic)
+               OR toLower(t.normalized_name) CONTAINS toLower($topic)
+            MATCH (q:Question)-[r:TESTS_TOPIC]->(t)
+            WHERE r.review_status IN ['approved', 'pending_review']
+            RETURN q.id AS id, q.question_number AS question_number,
+                   q.text AS text, q.marks AS marks, q.btl AS btl,
+                   q.image_url AS image_url, q.course_code AS course_code,
+                   t.name AS topic_name, r.confidence AS mapping_confidence
+            ORDER BY mapping_confidence DESC
+            """,
+            topic=topic,
+        )
+        return result.data()
+
 
 
 import json
@@ -80,22 +146,109 @@ def fetch_all_problems_by_topic(neo4j_driver, topic: str) -> list[dict]:
     Used when no approved TESTS_TOPIC relationships exist for the topic.
     """
     stop_words = {
-        "get", "me", "a", "the", "all", "questions", "question", "problems", "problem",
-        "solve", "solved", "solutions", "solution", "calculate", "write", "analyse", "analysis",
-        "determine", "derive", "sketch", "draw", "obtain", "evaluate",
-        "on", "about", "find", "show", "list", "give", "related",
-        "are", "there", "any", "is", "what", "how", "why", "who", "where",
-        "can", "you", "tell", "explain", "describe", "provide",
-        "in", "of", "to", "for", "with", "and", "or", "not", "this", "that",
-        "do", "does", "did", "have", "has", "had", "would", "could", "should",
-        "some", "from", "by", "an", "it", "they", "we", "he", "she", "which",
-        "rule", "rules", "law", "laws", "theorem", "theorems", "method", "methods",
-        "principle", "principles", "formula", "formulas", "technique", "techniques",
-        "circuit", "circuits", "system", "systems", "example", "examples", "using"
+        "get",
+        "me",
+        "a",
+        "the",
+        "all",
+        "questions",
+        "question",
+        "problems",
+        "problem",
+        "solve",
+        "solved",
+        "solutions",
+        "solution",
+        "calculate",
+        "write",
+        "analyse",
+        "analysis",
+        "determine",
+        "derive",
+        "sketch",
+        "draw",
+        "obtain",
+        "evaluate",
+        "on",
+        "about",
+        "find",
+        "show",
+        "list",
+        "give",
+        "related",
+        "are",
+        "there",
+        "any",
+        "is",
+        "what",
+        "how",
+        "why",
+        "who",
+        "where",
+        "can",
+        "you",
+        "tell",
+        "explain",
+        "describe",
+        "provide",
+        "in",
+        "of",
+        "to",
+        "for",
+        "with",
+        "and",
+        "or",
+        "not",
+        "this",
+        "that",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+        "would",
+        "could",
+        "should",
+        "some",
+        "from",
+        "by",
+        "an",
+        "it",
+        "they",
+        "we",
+        "he",
+        "she",
+        "which",
+        "rule",
+        "rules",
+        "law",
+        "laws",
+        "theorem",
+        "theorems",
+        "method",
+        "methods",
+        "principle",
+        "principles",
+        "formula",
+        "formulas",
+        "technique",
+        "techniques",
+        "circuit",
+        "circuits",
+        "system",
+        "systems",
+        "example",
+        "examples",
+        "using",
     }
 
-    words = [w.strip(".,!?-'\"") for w in topic.lower().split()
-             if len(w) > 2 and w not in stop_words]
+    # Extract clean search terms
+    words = [
+        w.strip(".,!?-'\"")
+        for w in topic.lower().split()
+        if len(w) > 2 and w not in stop_words
+    ]
 
     if not words:
         words = [topic.lower()]
@@ -117,31 +270,24 @@ def fetch_all_problems_by_topic(neo4j_driver, topic: str) -> list[dict]:
     word_groups = [expand_term(w) for w in words]
 
     with neo4j_driver.session() as session:
-        result = session.run("""
+        # Match Question nodes where every keyword group has at least one term matching in question text.
+        # No LIMIT clause: fetches 100% of matching questions across all uploaded documents.
+        result = session.run(
+            """
             MATCH (q:Question)-[:BELONGS_TO]->(c:Course)
             WHERE ALL(group IN $word_groups
                       WHERE ANY(term IN group
                                 WHERE replace(toLower(q.text), "'", "") CONTAINS term))
                OR replace(toLower(q.text), "'", "") CONTAINS toLower($topic)
-            OPTIONAL MATCH (q)-[:MAPPED_TO_CO]->(co:CourseOutcome)
-            WITH q, c, collect(DISTINCT co.id) AS course_outcomes
-            WITH q.text AS text,
-                 collect(q.id)[0] AS id,
-                 collect(q.question_number)[0] AS question_number,
-                 collect(q.image_url)[0] AS image_url,
-                 collect(c.code)[0] AS course_code,
-                 collect(course_outcomes[0])[0] AS co_id
-            RETURN id,
-                   question_number,
-                   text,
-                   image_url,
-                   course_code,
-                   co_id,
-                   null AS topic_name,
-                   null AS mapping_confidence,
-                   null AS source_document
-            ORDER BY toInteger(question_number) ASC
-        """, word_groups=word_groups, topic=topic)
+            RETURN q.id AS id, 
+                   q.question_number AS question_number, 
+                   q.text AS text, 
+                   q.image_url AS image_url, 
+                   c.code AS course_code
+        """,
+            word_groups=word_groups,
+            topic=topic,
+        )
         return result.data()
 
 

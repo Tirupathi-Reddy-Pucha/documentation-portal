@@ -1,18 +1,18 @@
 {
-  "name": "CurriculumLens AI",
-  "short_name": "M.A.C.H.",
+  "name": "M.A.C.H. - Multimodel Academic Cognitive Hub - A Fine-tuned Graph-RAG framework for Campus Knowledge Systems",
+  "short_name": "MACH AI",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#0E0E0E",
   "theme_color": "#A4123F",
   "icons": [
     {
-      "src": "/assets/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/assets/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

@@ -1,0 +1,56 @@
+/* Shared Buttons */
+.btn {
+  height: 46px; border: none; border-radius: var(--r-sm);
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .2s ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(164,18,63,.28); }
+.btn-primary:active { transform: translateY(0); }
+.btn-outline { background: var(--surface); color: var(--brand); border: 1.5px solid var(--brand-20); }
+.btn-outline:hover { background: var(--brand-5); border-color: var(--brand); transform: translateY(-1px); }
+
+.btn-icon {
+  width: 36px; height: 36px; border: none; background: none;
+  cursor: pointer; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3); transition: background .15s, color .15s; font-size: 17px;
+}
+.btn-icon:hover { background: var(--surface-2); color: var(--text); }
+
+/* Avatar */
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--brand); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-family: 'Outfit', sans-serif; flex-shrink: 0;
+}
+.avatar.sm { width: 22px; height: 22px; font-size: 9px; }
+
+/* User Pill (Top Nav) */
+.user-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; cursor: default;
+}
+.user-pill .user-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.user-pill .user-roll { font-size: 10.5px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
+
+/* Toasts */
+.toast-container {
+  position: fixed; bottom: 20px; right: 20px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 9999;
+}
+.toast {
+  background: var(--bg-1); color: var(--text-1);
+  padding: 12px 20px; border-radius: 8px; font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border-left: 4px solid var(--brand);
+  animation: slide-in 0.3s ease forwards;
+}
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

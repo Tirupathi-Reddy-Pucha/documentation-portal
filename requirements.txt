@@ -1,4 +1,4 @@
-# CurriculumLens Backend — Python Dependencies
+# M.A.C.H. Backend — Python Dependencies
 # Tested on Python 3.11
 
 # Web Framework
@@ -24,8 +24,13 @@ httpx
 # Environment variable loading
 python-dotenv
 pydantic
+pydantic-settings
 pillow
 cloudinary
 
-# JWT Authentication
+# Security & Limits
 python-jose[cryptography]
+slowapi
+
+# Linting & Formatting
+ruff
