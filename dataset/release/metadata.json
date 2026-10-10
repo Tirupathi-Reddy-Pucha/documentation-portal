@@ -1,0 +1,32 @@
+{
+  "name": "Campus Knowledge Engine (CurriculumLens) Fine-tuning Dataset",
+  "version": "1.0.0",
+  "description": "A synthetic instruction fine-tuning dataset for training LLMs to perform specialized Graph RAG tasks on academic curricula and past year question papers.",
+  "authors": [
+    "Prabhas",
+    "Google Antigravity"
+  ],
+  "license": "CC-BY-4.0",
+  "language": "en",
+  "format": "alpaca-jsonl",
+  "size": {
+    "rows": 9000,
+    "tasks": 6
+  },
+  "task_distribution": {
+    "intent_classification": 1500,
+    "topic_mapping": 1500,
+    "rag_answer_generation": 1500,
+    "query_rewrite": 1500,
+    "knowledge_graph_extraction": 1500,
+    "syllabus_enrichment": 1500
+  },
+  "tags": [
+    "instruction-tuning",
+    "graph-rag",
+    "education",
+    "neo4j",
+    "json-schema",
+    "curriculum"
+  ]
+}
