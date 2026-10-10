@@ -12,6 +12,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import uvicorn
+from collections import defaultdict
+from typing import Optional
+from intent_router import classify_query_intent
 
 # FastAPI is the core framework used to build our web API
 from fastapi import (
@@ -46,8 +49,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # StaticFiles already imported above
 # Import our custom database configurations and models
-from database import Base, Document, DocumentChunk, engine, get_db, get_neo4j
-from query_neo4j import fetch_all_problems_by_topic
+from database import Base, Document, DocumentChunk, ProcessingReport, engine, get_db, get_neo4j
+from query_neo4j import fetch_all_problems_by_topic, fetch_problems_by_topic_graph
 from utils import (
     PREREQUISITE_MAP,
     add_prerequisite_edges,
@@ -164,6 +167,7 @@ app.add_middleware(
     allow_credentials=False,  # False because we use Bearer tokens, not cookies
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, DELETE, etc.)
     allow_headers=["*"],  # Allow all HTTP headers
+    expose_headers=["X-Response-Type", "X-Message-ID"],  # Allow frontend to read custom headers
 )
 
 
@@ -287,130 +291,7 @@ import httpx
 from utils import OLLAMA_BASE_URL, OLLAMA_MODEL
 
 
-async def classify_query_intent(question: str) -> str:
-    """
-    Tiered classification: Fast keyword pre-filter first.
-    If ambiguous, invoke the LLM classifier.
-    """
-    q_lower = question.lower()
 
-    # Tier 1: Fast Keyword Routing
-    # Check for problem list requests first
-    if any(
-        marker in q_lower
-        for marker in [
-            "problems on",
-            "problem on",
-            "questions on",
-            "question on",
-            "pyqs on",
-            "pyq on",
-            "problems about",
-            "questions about",
-        ]
-    ):
-        return "PROBLEM_LIST"
-
-    if any(
-        k in q_lower
-        for k in [
-            "prerequisite",
-            "before taking",
-            "should i know",
-            "requires",
-            "needed for",
-        ]
-    ):
-        return "MULTI_HOP_PREREQ"
-    elif any(
-        k in q_lower
-        for k in [
-            "btl",
-            "co1",
-            "co2",
-            "co3",
-            "co4",
-            "co5",
-            "bloom",
-            "mapped to",
-            "course outcome questions",
-        ]
-    ):
-        return "GRAPH_PYQ_MAPPING"
-    elif any(
-        k in q_lower
-        for k in [
-            "syllabus",
-            "topics",
-            "units",
-            "course outcomes",
-            "objectives",
-            "evaluation",
-            "pattern",
-            "textbook",
-            "reference",
-        ]
-    ):
-        return "SIMPLE_CURRICULUM"
-    elif any(
-        k in q_lower
-        for k in [
-            "question",
-            "questions",
-            "pyq",
-            "past year",
-            "exam",
-            "paper",
-            "midterm",
-            "mid-term",
-            "endsem",
-            "end-sem",
-            "problem",
-            "problems",
-            "circuit",
-        ]
-    ):
-        return "SIMPLE_PYQ"
-
-    # Tier 2: LLM Fallback (Slow)
-    prompt = f"""
-You are a query classification engine for a university information system.
-Classify the user's question into exactly one primary category.
-
-Categories:
-- "PROBLEM_LIST": Questions asking for problem sets, practice problems, or exam questions on a specific academic topic (e.g. "problems on superposition theorem").
-- "SIMPLE_CURRICULUM": Questions about courses, syllabus content, units, topics, learning outcomes.
-- "SIMPLE_PYQ": Questions asking for a specific, single past year question (e.g., "what is question 5 of course EEE104?").
-- "MULTI_HOP_PREREQ": Questions asking about course prerequisites or what to know before taking a course.
-- "GRAPH_PYQ_MAPPING": Questions asking for questions mapped to specific Course Outcomes (COs) or Bloom's Taxonomy Levels (BTLs).
-- "GENERAL_QUERY": Open-ended concept questions, explanations, or general academic queries (e.g., "what is nodal analysis?", "explain photosynthesis").
-
-Return ONLY the category name. No explanations.
-Question: {question}
-"""
-    try:
-        async with httpx.AsyncClient(
-            headers={"ngrok-skip-browser-warning": "true"}
-        ) as client:
-            response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-                timeout=25.0,
-            )
-            ans = response.json().get("response", "").strip().upper()
-            if ans in [
-                "SIMPLE_CURRICULUM",
-                "SIMPLE_PYQ",
-                "MULTI_HOP_PREREQ",
-                "GRAPH_PYQ_MAPPING",
-                "PROBLEM_LIST",
-                "GENERAL_QUERY",
-            ]:
-                return ans
-    except Exception as e:
-        print(f"LLM classification error: {type(e).__name__}: {e}")
-
-    return "SIMPLE_CURRICULUM"  # Default fallback
 
 
 def execute_graph_prereq_query(neo4j_driver, question: str) -> list:
@@ -461,93 +342,97 @@ def execute_graph_co_query(neo4j_driver, question: str) -> list:
     return records
 
 
-def execute_graph_syllabus_query(neo4j_driver, question: str) -> list:
-    """Queries Neo4j for course syllabus structure (Units & Topics)."""
-    words = [
-        w.strip(".,!?-'\"")
-        for w in question.lower().split()
-        if len(w) > 2
-        and w
-        not in [
-            "get",
-            "me",
-            "the",
-            "syllabus",
-            "for",
-            "course",
-            "topics",
-            "units",
-            "what",
-            "is",
-        ]
-    ]
-    if not words:
-        words = [question.lower()]
-
-    search_query = " ".join(words)
+def execute_graph_syllabus_query(neo4j_driver, question: str) -> dict:
+    """
+    Returns structured syllabus query result:
+      {"match_type": "exact",        "records": [...]}
+      {"match_type": "similar_list", "courses": [...]}
+      {"match_type": "none",         "records": []}
+    Unit records are sorted ascending by unit_number.
+    """
+    STOP = {
+        "get", "me", "the", "syllabus", "for", "course", "topics", "units", "unit",
+        "what", "is", "give", "show", "list", "provide", "all", "of", "about",
+        "in", "please", "and", "a", "an",
+    }
+    words = [w.strip(".,!?'\"") for w in question.lower().split()
+             if len(w) > 1 and w.lower() not in STOP]
+    phrase = " ".join(words).strip()
 
     with neo4j_driver.session() as session:
-        # Use the Neo4j full-text index to robustly find the most relevant course
-        records = session.run(
-            """
-            CALL db.index.fulltext.queryNodes("course_name_ft", $q) YIELD node, score
-            WITH node LIMIT 1
-            
-            // Fetch Units
-            OPTIONAL MATCH (node)-[:HAS_UNIT]->(u:Unit)-[:HAS_TOPIC]->(t:Topic)
-            WITH node, u, collect(DISTINCT t.name) as topics
-            WITH node, collect({title: u.title, topics: topics}) as units
-            
-            // Fetch Evaluation
-            OPTIONAL MATCH (node)-[:HAS_EVALUATION_PATTERN]->(ep:EvaluationPattern)
-            OPTIONAL MATCH (ep)-[:HAS_INTERNAL]->(int:Internal)-[:HAS_ASSESSMENT]->(i_ac:AssessmentComponent)
-            OPTIONAL MATCH (ep)-[:HAS_EXTERNAL]->(ext:External)-[:HAS_ASSESSMENT]->(e_ac:AssessmentComponent)
-            WITH node, units, ep, 
-                 collect(DISTINCT {name: i_ac.name, marks: i_ac.marks}) as internals,
-                 collect(DISTINCT {name: e_ac.name, marks: e_ac.marks}) as externals
-                 
-            // Fetch Textbooks & References
-            OPTIONAL MATCH (node)-[:USES_TEXTBOOK]->(tb:Textbook)
-            WITH node, units, ep, internals, externals, collect(DISTINCT tb.text) as textbooks
-            OPTIONAL MATCH (node)-[:HAS_REFERENCE]->(ref:Reference)
-            
-            RETURN 
-                node.code as course_code, 
-                node.name as course_name, 
-                units, 
-                ep.ratio as eval_ratio,
-                internals,
-                externals,
-                textbooks,
-                collect(DISTINCT ref.text) as references
-        """,
-            q=search_query,
-        ).data()
+        # 1. Exact match on code or full name
+        if phrase:
+            exact = session.run("""
+                MATCH (c:Course)
+                WHERE toLower(c.code) = toLower($sp) OR toLower(c.name) = toLower($sp)
+                OPTIONAL MATCH (c)-[:HAS_UNIT]->(u:Unit)-[:HAS_TOPIC]->(t:Topic)
+                WITH c, u, t ORDER BY toInteger(last(split(t.topic_id, '_t'))) ASC
+                WITH c, u.number AS unit_num,
+                     coalesce(u.title, 'Unit ' + toString(u.number)) AS unit_title,
+                     collect(t.name) AS topics
+                WHERE size(topics) > 0
+                RETURN c.code AS course_code, c.name AS course_name,
+                       toInteger(unit_num) AS unit_number, unit_title, topics
+                ORDER BY unit_number ASC
+            """, sp=phrase).data()
+            if exact:
+                return {"match_type": "exact", "records": exact}
 
-        # If no units were found (empty course match), fallback to checking topics directly using CONTAINS
-        if not records or (len(records) == 1 and not records[0]["units"]):
-            topic_records = session.run(
-                """
+        # 2. Keyword match
+        candidates = []
+        if words:
+            candidates = session.run("""
+                MATCH (c:Course)
+                WHERE all(word IN $words WHERE toLower(c.name) CONTAINS word
+                          OR toLower(c.code) CONTAINS word)
+                RETURN c.code AS course_code, c.name AS course_name
+                ORDER BY size(c.name) ASC LIMIT 10
+            """, words=words).data()
+
+        if len(candidates) == 1:
+            single = session.run("""
+                MATCH (c:Course {code: $c_code})-[:HAS_UNIT]->(u:Unit)
+                OPTIONAL MATCH (u)-[:HAS_TOPIC]->(t:Topic)
+                WITH c, u, t ORDER BY toInteger(last(split(t.topic_id, '_t'))) ASC
+                WITH c, u.number AS unit_num,
+                     coalesce(u.title, 'Unit ' + toString(u.number)) AS unit_title,
+                     collect(t.name) AS topics
+                WHERE size(topics) > 0
+                RETURN c.code AS course_code, c.name AS course_name,
+                       toInteger(unit_num) AS unit_number, unit_title, topics
+                ORDER BY unit_number ASC
+            """, c_code=candidates[0]["course_code"]).data()
+            if single:
+                return {"match_type": "exact", "records": single}
+
+        if len(candidates) > 1:
+            return {"match_type": "similar_list", "courses": candidates}
+
+        # 3. Topic-level fallback
+        if words:
+            topic_records = session.run("""
                 MATCH (c:Course)-[:HAS_UNIT]->(u:Unit)-[:HAS_TOPIC]->(t:Topic)
                 WHERE all(word IN $words WHERE toLower(t.name) CONTAINS word)
-                RETURN c.code as course_code, c.name as course_name, u.title as unit_title, collect(DISTINCT t.name) as topics
-                LIMIT 15
-            """,
-                words=words,
-            ).data()
+                WITH c, u.number AS unit_num,
+                     coalesce(u.title, 'Unit ' + toString(u.number)) AS unit_title,
+                     collect(DISTINCT t.name) AS topics
+                WHERE size(topics) > 0
+                RETURN c.code AS course_code, c.name AS course_name,
+                       toInteger(unit_num) AS unit_number, unit_title, topics
+                ORDER BY c.code, unit_num ASC LIMIT 15
+            """, words=words).data()
             if topic_records:
-                records = topic_records
+                return {"match_type": "exact", "records": topic_records}
 
-    return records
+    return {"match_type": "none", "records": []}
 
 
 class ChatRequest(BaseModel):
     """Defines the expected JSON structure when a student asks a question."""
 
     message: str
-    session_id: str | None = (
-        None  # Client-side session tracking; unused server-side for now
-    )
+    session_id: Optional[str] = None
+    image_b64: Optional[str] = None
 
 
 import time
@@ -653,6 +538,30 @@ def extract_topic_from_query(question: str) -> str:
     return question.strip("? .!").title()
 
 
+# ── Conversational Memory ─────────────────────────────────────────
+_session_history: dict = defaultdict(list)
+_session_last_active: dict = {}
+MAX_HISTORY_TURNS = 6  # last 3 user + 3 assistant turns
+
+def get_session_history(session_id: Optional[str]) -> list:
+    if not session_id:
+        return []
+    now = time.time()
+    if session_id in _session_last_active:
+        if now - _session_last_active[session_id] > 7200:  # 2-hour expiry
+            _session_history[session_id] = []
+    _session_last_active[session_id] = now
+    return list(_session_history[session_id][-MAX_HISTORY_TURNS:])
+
+def append_session_message(session_id: Optional[str], role: str, content: str):
+    if not session_id or not content.strip():
+        return
+    _session_history[session_id].append({"role": role, "content": content.strip()})
+    _session_last_active[session_id] = time.time()
+    if len(_session_history[session_id]) > MAX_HISTORY_TURNS:
+        _session_history[session_id] = _session_history[session_id][-MAX_HISTORY_TURNS:]
+
+
 @app.post("/chat")
 @limiter.limit("15/minute")
 async def chat_endpoint(
@@ -663,7 +572,11 @@ async def chat_endpoint(
     PostgreSQL/Neo4j for relevant context, and streams the AI response back.
     """
     question = payload.message
-    cache_key = question.strip().lower()
+    session_id = payload.session_id or "default_session"
+    append_session_message(session_id, "user", question)
+    
+    history = get_session_history(session_id)
+    cache_key = f"{session_id}:{question.strip().lower()}" if history else question.strip().lower()
 
     # --- Check cache first ---
     cached = _get_cached_response(cache_key)
@@ -674,16 +587,54 @@ async def chat_endpoint(
 
         return StreamingResponse(yield_cached(), media_type="text/plain")
 
+    # LLM query rewriting: expand vague follow-ups using conversation history
+    search_query = question
+    if history:
+        try:
+            hist_str = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in history[-4:])
+            rewrite_prompt = (
+                f"Conversation so far:\n{hist_str}\n\n"
+                f"New user message: {question}\n\n"
+                "If this message is a vague follow-up that refers to something from the conversation "
+                "(e.g. 'that topic', 'unit 2 only', 'same course'), rewrite it as a fully self-contained "
+                "academic query. Otherwise return it unchanged. Return ONLY the rewritten query."
+            )
+            import httpx as _httpx
+            async with _httpx.AsyncClient(headers={"ngrok-skip-browser-warning": "true"}) as _c:
+                _r = await _c.post(
+                    f"{OLLAMA_BASE_URL}/api/generate",
+                    json={"model": OLLAMA_MODEL, "prompt": rewrite_prompt,
+                          "stream": False, "options": {"temperature": 0.0}},
+                    timeout=20.0,
+                )
+                rewritten = _r.json().get("response", "").strip()
+                if rewritten and rewritten.lower() != question.lower():
+                    print(f"[ROUTER] Query rewritten: '{question}' -> '{rewritten}'")
+                    search_query = rewritten
+        except Exception as _e:
+            print(f"[ROUTER] Rewrite failed: {_e}")
+
     context_parts = []
 
-    intent = await classify_query_intent(question)
+    intent = await classify_query_intent(search_query)
     print(f"[ROUTER] Intent classified as: {intent}")
 
     neo4j_driver = get_neo4j()
 
     if intent == "PROBLEM_LIST":
         topic_name = extract_topic_from_query(question)
-        problems = fetch_all_problems_by_topic(neo4j_driver, topic_name)
+        import re as _re
+        graph_problems = await fetch_problems_by_topic_graph(neo4j_driver, topic_name) if topic_name else []
+        keyword_problems = fetch_all_problems_by_topic(neo4j_driver, topic_name) if topic_name else []
+        print(f"[ROUTER] Graph RAG: {len(graph_problems)}, Keyword: {len(keyword_problems)} for '{topic_name}'")
+        seen_texts, seen_ids, problems = set(), set(), []
+        for p in graph_problems + keyword_problems:
+            p_id = p.get("id")
+            norm = _re.sub(r'\s+', ' ', (p.get("text") or "").strip().lower())
+            if norm and norm not in seen_texts and p_id not in seen_ids:
+                seen_texts.add(norm)
+                if p_id: seen_ids.add(p_id)
+                problems.append(p)
         # Add X-Response-Type header so the frontend can detect this is a structured
         # JSON payload (problem card layout) rather than a streaming text response.
         return JSONResponse(
@@ -714,75 +665,49 @@ async def chat_endpoint(
                 )
 
     elif intent == "SIMPLE_CURRICULUM":
-        # Search Neo4j Graph for Comprehensive Course Profile (Syllabus, Evaluation, etc)
-        records = execute_graph_syllabus_query(neo4j_driver, question)
-        if records:
-            # We get at most 1 comprehensive record or up to 15 simple topic records from fallback
-            # Since the comprehensive query aggregates into lists, we can process directly
-            for r in records:
-                c_code = r.get("course_code")
-                c_name = r.get("course_name")
-                fact = f"Course Profile for [{c_code}] {c_name}:\n"
+        syllabus_res = execute_graph_syllabus_query(neo4j_driver, search_query)
+        match_type   = syllabus_res.get("match_type")
 
-                # Check if it's the new comprehensive format or fallback format
-                if "units" in r and isinstance(r["units"], list):
-                    # Syllabus
-                    if r["units"] and r["units"][0].get("title"):
-                        fact += "\nSyllabus:\n"
-                        for u in r["units"]:
-                            if u.get("title"):
-                                fact += (
-                                    f"  - {u['title']}: "
-                                    + ", ".join(u["topics"])
-                                    + "\n"
-                                )
+        if match_type == "exact":
+            records = syllabus_res.get("records", [])
+            if records:
+                c_code = records[0]["course_code"]
+                c_name = records[0]["course_name"]
+                context_parts.append(f"--- SYLLABUS: {c_code} - {c_name} ---")
+                units_dict = {}
+                for r in records:
+                    u_num   = r.get("unit_number") or 999
+                    u_title = r.get("unit_title") or f"Unit {u_num}"
+                    if u_num not in units_dict:
+                        units_dict[u_num] = {"title": u_title, "topics": list(r.get("topics", []))}
+                    else:
+                        for t in r.get("topics", []):
+                            if t not in units_dict[u_num]["topics"]:
+                                units_dict[u_num]["topics"].append(t)
+                for u_num in sorted(units_dict):
+                    info = units_dict[u_num]
+                    context_parts.append(f"  Unit {u_num} - {info['title']}: {', '.join(info['topics'])}")
 
-                    # Evaluation Pattern
-                    if r.get("eval_ratio"):
-                        fact += f"\nEvaluation Pattern ({r['eval_ratio']}):\n"
-                        for i_ac in r.get("internals", []):
-                            if i_ac.get("name"):
-                                fact += f"  - Internal: {i_ac['name']} ({i_ac['marks']} marks)\n"
-                        for e_ac in r.get("externals", []):
-                            if e_ac.get("name"):
-                                fact += f"  - External: {e_ac['name']} ({e_ac['marks']} marks)\n"
+        elif match_type == "similar_list":
+            courses = syllabus_res.get("courses", [])
+            context_parts.append("--- MULTIPLE COURSES FOUND ---")
+            context_parts.append("Multiple courses match. Please specify which one you mean:")
+            for c in courses:
+                context_parts.append(f"- {c['course_code']}: {c['course_name']}")
 
-                    # Textbooks
-                    if r.get("textbooks"):
-                        fact += "\nTextbooks:\n"
-                        for tb in r["textbooks"]:
-                            if tb:
-                                fact += f"  - {tb}\n"
-
-                    # References
-                    if r.get("references"):
-                        fact += "\nReferences:\n"
-                        for ref in r["references"]:
-                            if ref:
-                                fact += f"  - {ref}\n"
-
-                    context_parts.append(fact)
-                else:
-                    # Fallback topic logic
-                    if r.get("unit_title") and r.get("topics"):
-                        fact += (
-                            f"  - {r['unit_title']}: " + ", ".join(r["topics"]) + "\n"
-                        )
-                        context_parts.append(fact)
-
-        # Also search PostgreSQL via RRF for extra prose chunks
-        question_embedding = await get_embedding(question)
-        if question_embedding:
-            try:
-                chunks = await hybrid_search_rrf(db, question, question_embedding, k=5)
-                if chunks:
-                    context_parts.append("--- ADDITIONAL TEXT CHUNKS ---")
-                    for chunk in chunks:
-                        content = chunk.get("content", "")
-                        if content:
-                            context_parts.append(content)
-            except Exception as e:
-                print(f"Hybrid search error in /chat: {e}")
+        else:
+            # Fallback to hybrid PostgreSQL vector search
+            question_embedding = await get_embedding(search_query)
+            if question_embedding:
+                try:
+                    chunks = await hybrid_search_rrf(db, search_query, question_embedding, k=5)
+                    if chunks:
+                        context_parts.append("--- ADDITIONAL TEXT CHUNKS ---")
+                        for chunk in chunks:
+                            if chunk.get("content"):
+                                context_parts.append(chunk["content"])
+                except Exception as e:
+                    print(f"Hybrid search error: {e}")
 
     elif intent == "GENERAL_QUERY":
         # Search PostgreSQL via RRF for extra prose chunks to explain the concept
@@ -878,7 +803,9 @@ async def chat_endpoint(
                 full_response.append(image_block)
                 yield image_block
 
-        _set_cache(cache_key, "".join(full_response))
+        response_str = "".join(full_response)
+        _set_cache(cache_key, response_str)
+        append_session_message(session_id, "assistant", response_str)
 
     return StreamingResponse(stream_and_cache(), media_type="text/plain")
 
@@ -1226,6 +1153,8 @@ async def image_query_endpoint(
 async def process_syllabus_background(
     file_path: str, department: str, year: str, document_id: uuid.UUID
 ):
+    import json
+    report = {"type": "syllabus", "status": "started", "file": file_path}
     """
     Campus-wide GraphRAG syllabus ingestion using the new SyllabusParser.
     Builds a full dual-layer Neo4j graph (semantic + source/document).
@@ -1247,16 +1176,30 @@ async def process_syllabus_background(
             None, parser.parse_and_ingest, file_path, department, year
         )
         print(f"[Syllabus] Ingestion complete: {summary}")
+        report["status"] = "success"
+        report["summary"] = summary
+        async for db in get_db():
+            db.add(ProcessingReport(document_id=document_id, course_code="SYLLABUS", report_json=json.dumps(report)))
+            await db.commit()
+            break
     except Exception as e:
         import traceback
 
         print(f"[Syllabus] ERROR during ingestion of {department} {year}: {e}")
+        report["status"] = "error"
+        report["error"] = str(e)
+        async for db in get_db():
+            db.add(ProcessingReport(document_id=document_id, course_code="SYLLABUS", report_json=json.dumps(report)))
+            await db.commit()
+            break
         traceback.print_exc()
 
 
 async def process_pyq_background(
     file_path: str, course_code: str, document_id: uuid.UUID
 ):
+    import json
+    report = {"type": "pyq", "course_code": course_code, "status": "started", "structured": 0, "vision": 0, "mapped": 0}
     print(f"[PYQ] Starting processing for {course_code}...")
     neo4j_driver = get_neo4j()
 
@@ -1272,6 +1215,9 @@ async def process_pyq_background(
         async for db in get_db():
             for q in structured_qs:
                 labeled_content = f"[PYQ - {course_code} - {q['question_number']}]\n{q['question_text']}"
+                img_url = q.get("image_url")
+                if img_url:
+                    labeled_content += f"\n\n![Diagram for Q{q['question_number']}]({img_url})"
                 embedding = await get_embedding(labeled_content)
                 if embedding:
                     text_chunk = DocumentChunk(
@@ -1285,6 +1231,12 @@ async def process_pyq_background(
             await db.commit()
             break
         print(f"[PYQ] Finished processing structured text for {course_code}!")
+        report["status"] = "success_structured"
+        report["structured"] = len(structured_qs)
+        async for db in get_db():
+            db.add(ProcessingReport(document_id=document_id, course_code=course_code, report_json=json.dumps(report)))
+            await db.commit()
+            break
         return
 
     print("[PYQ] Text extractor found 0 questions. Falling back to Vision AI...")
@@ -1371,6 +1323,11 @@ async def process_pyq_background(
         break
 
     print(f"[PYQ] Finished processing all content for {course_code}!")
+    report["status"] = "success_vision"
+    async for db in get_db():
+        db.add(ProcessingReport(document_id=document_id, course_code=course_code, report_json=json.dumps(report)))
+        await db.commit()
+        break
 
 
 # Application Entry Point

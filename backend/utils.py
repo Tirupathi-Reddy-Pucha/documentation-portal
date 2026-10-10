@@ -5,6 +5,7 @@ import os
 
 import httpx
 from dotenv import load_dotenv
+from embedder import embed_text as _cached_embed_text
 
 # Load environment variables from the .env file at the project root.
 # os.path.dirname(__file__) gives us the 'backend/' folder.
@@ -343,32 +344,8 @@ async def describe_uploaded_image(base64_image: str) -> str:
 import asyncio
 
 
-async def get_embedding(text: str, retries=3) -> list[float]:
-    """
-    Sends a string of text to Ollama and asks for its 'vector embedding'.
-    An embedding is an array of 768 numbers that represents the 'meaning' of the text.
-    We use the specialized 'nomic-embed-text' model for this.
-    """
-    for attempt in range(retries):
-        try:
-            # We use httpx.AsyncClient to make non-blocking HTTP requests to Ollama
-            async with httpx.AsyncClient(
-                headers={"ngrok-skip-browser-warning": "true"}
-            ) as client:
-                response = await client.post(
-                    f"{OLLAMA_BASE_URL}/api/embeddings",
-                    json={"model": OLLAMA_EMBED_MODEL, "prompt": text},
-                    timeout=60.0,
-                )
-                response.raise_for_status()
-                # The API returns a JSON object with an 'embedding' array
-                return response.json().get("embedding", [])
-        except Exception as e:
-            print(
-                f"Failed to generate embedding (attempt {attempt + 1}/{retries}): {e}"
-            )
-            await asyncio.sleep(2)
-    return []
+async def get_embedding(text: str) -> list:
+    return await _cached_embed_text(text)
 
 
 # 3. Knowledge Graph Extraction — Find concepts and their relationships

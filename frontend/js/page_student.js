@@ -191,11 +191,22 @@ function renderProblemCards(data) {
     const imgHtml = p.image_url && p.image_url !== 'None'
       ? `<img src="${escapeHtml(p.image_url)}" alt="Diagram for Q${idx+1}" class="pc-img">`
       : '';
+      
+    // Graph RAG indicators
+    let aiBadge = '';
+    if (p.mapping_confidence) {
+      const conf = Math.round(p.mapping_confidence * 100);
+      aiBadge = `<span class="pc-ai-badge" title="AI Confidence: ${conf}% mapped to topic: ${p.topic_name}">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        AI Mapped
+      </span>`;
+    }
+
     return `
       <div class="problem-card">
         <div class="pc-header">
           <span class="pc-num">Q${idx + 1}</span>
-          <div class="pc-tags">${course}${marks}${btl}</div>
+          <div class="pc-tags">${aiBadge}${course}${marks}${btl}</div>
         </div>
         <div class="pc-body">${qText}</div>
         ${imgHtml}

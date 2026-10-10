@@ -110,6 +110,20 @@ class DocumentChunk(Base):
     embedding = Column(Vector(768), nullable=True)
 
 
+class ProcessingReport(Base):
+    """
+    Stores per-document PYQ extraction and mapping audit report as a JSON payload.
+    Table name: processing_reports
+    """
+    __tablename__ = "processing_reports"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    course_code = Column(String, nullable=True)
+    report_json = Column(Text, nullable=False, default="{}")
+    created_at  = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 # -----------------------------------------------------------------------------
 # Database Dependency Injection
 # -----------------------------------------------------------------------------

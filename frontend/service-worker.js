@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mach-cache-v4';
+const CACHE_NAME = 'mach-cache-v5';
 const urlsToCache = [
   './index.html',
   './css/main.css',
