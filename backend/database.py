@@ -123,38 +123,6 @@ class ProcessingReport(Base):
     report_json = Column(Text, nullable=False, default="{}")
     created_at  = Column(DateTime, default=datetime.datetime.utcnow)
 
-    # Fast Approximate Nearest Neighbor (ANN) index for vector similarity search
-    # We use vector_cosine_ops for cosine similarity matching
-    __table_args__ = (
-        Index(
-            'ix_document_chunks_embedding_hnsw',
-            embedding,
-            postgresql_using='hnsw',
-            postgresql_with={'m': 16, 'ef_construction': 64},
-            postgresql_ops={'embedding': 'vector_cosine_ops'}
-        ),
-    )
-
-
-class ProcessingReport(Base):
-    """
-    Stores the per-document extraction and mapping report produced after each
-    PYQ or syllabus upload. Allows the admin dashboard to display exact counts,
-    skip reasons, per-stage timings, and partial-completion details without
-    re-querying Neo4j.
-
-    Table name: processing_reports
-    """
-    __tablename__ = "processing_reports"
-
-    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    course_code = Column(String, nullable=True)
-    # JSON payload matching the PYQProcessingReport or SyllabusProcessingReport dataclass.
-    # Stored as TEXT rather than native JSONB so we don't need an extra extension.
-    report_json = Column(Text, nullable=False, default="{}")
-    created_at  = Column(DateTime, default=datetime.datetime.utcnow)
-
 
 # -----------------------------------------------------------------------------
 # Database Dependency Injection

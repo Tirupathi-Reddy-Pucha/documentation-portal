@@ -15,6 +15,14 @@ import uvicorn
 from collections import defaultdict
 from typing import Optional
 from intent_router import classify_query_intent
+from query_neo4j import (
+    extract_semester_number,
+    execute_graph_semester_query,
+    execute_graph_elective_query,
+    resolve_course_code_or_name,
+    execute_graph_prereq_chain_query,
+    execute_graph_course_details_query,
+)
 
 # FastAPI is the core framework used to build our web API
 from fastapi import (
@@ -353,7 +361,9 @@ def execute_graph_syllabus_query(neo4j_driver, question: str) -> dict:
     STOP = {
         "get", "me", "the", "syllabus", "for", "course", "topics", "units", "unit",
         "what", "is", "give", "show", "list", "provide", "all", "of", "about",
-        "in", "please", "and", "a", "an",
+        "in", "please", "and", "a", "an", "reference", "references", "textbook",
+        "textbooks", "book", "books", "code", "codes", "name", "names", "title",
+        "tell", "which", "prescribed", "recommended"
     }
     words = [w.strip(".,!?'\"") for w in question.lower().split()
              if len(w) > 1 and w.lower() not in STOP]
@@ -646,14 +656,50 @@ async def chat_endpoint(
             headers={"X-Response-Type": "problem_list"},
         )
 
+    elif intent == "SEMESTER_COURSES":
+        from query_neo4j import extract_semester_numbers
+        sems = extract_semester_numbers(search_query) or extract_semester_numbers(question) or [3]
+        sem_courses = execute_graph_semester_query(neo4j_driver, sems)
+        if sem_courses:
+            sems_label = f"SEMESTER {', '.join(str(s) for s in sems)}" if len(sems) > 1 else f"SEMESTER {sems[0]}"
+            context_parts.append(f"--- {sems_label} COURSES (GROUND TRUTH FROM CURRICULUM GRAPH) ---")
+            for c in sem_courses:
+                sem_prefix = f"[Semester {c.get('semester')}] " if len(sems) > 1 and c.get('semester') else ""
+                cat_str = f" [{c['category']}]" if c.get("category") else ""
+                context_parts.append(f"- {sem_prefix}Course Code: {c['code']} | Title: {c['name']} | Credits: {c['credits']}{cat_str}")
+        else:
+            context_parts.append(f"No courses found in curriculum graph for semester(s) {sems}.")
+
+    elif intent == "ELECTIVE_STREAM":
+        stream_courses = execute_graph_elective_query(neo4j_driver, search_query)
+        if stream_courses:
+            context_parts.append("--- ELECTIVE BASKETS AND COURSES (GROUND TRUTH FROM CURRICULUM GRAPH) ---")
+            for c in stream_courses:
+                context_parts.append(f"- Basket: {c['basket']} | Course Code: {c['code']} | Title: {c['name']} | Credits: {c['credits']}")
+        else:
+            context_parts.append("No matching elective stream found in curriculum graph.")
+
     elif intent == "MULTI_HOP_PREREQ":
-        records = execute_graph_prereq_query(neo4j_driver, question)
-        if records:
-            context_parts.append("--- PREREQUISITE GRAPH KNOWLEDGE ---")
-            for r in records:
-                context_parts.append(
-                    f"Course: {r['course']} requires prerequisites: {', '.join(r['all_prerequisites'])}"
-                )
+        matched_course = resolve_course_code_or_name(neo4j_driver, search_query) or resolve_course_code_or_name(neo4j_driver, question)
+        if matched_course:
+            c_code = matched_course["code"]
+            c_name = matched_course["name"]
+            prereq_chain = execute_graph_prereq_chain_query(neo4j_driver, c_code)
+            if prereq_chain:
+                context_parts.append(f"--- PREREQUISITE CHAIN FOR {c_code} ({c_name}) ---")
+                context_parts.append(f"To take {c_code} ({c_name}), the required prerequisite courses are:")
+                for p in prereq_chain:
+                    context_parts.append(f"- {p['code']} ({p['name']}) [Prerequisite Level {p['depth']}]")
+            else:
+                context_parts.append(f"Course {c_code} ({c_name}) has no prerequisite courses listed in the curriculum.")
+        else:
+            records = execute_graph_prereq_query(neo4j_driver, question)
+            if records:
+                context_parts.append("--- PREREQUISITE GRAPH KNOWLEDGE ---")
+                for r in records:
+                    context_parts.append(
+                        f"Course: {r['course']} requires prerequisites: {', '.join(r['all_prerequisites'])}"
+                    )
 
     elif intent == "GRAPH_PYQ_MAPPING":
         records = execute_graph_co_query(neo4j_driver, question)
@@ -665,6 +711,74 @@ async def chat_endpoint(
                 )
 
     elif intent == "SIMPLE_CURRICULUM":
+        q_combined = (question + " " + search_query).lower()
+        is_ref_or_book = any(k in q_combined for k in [
+            "reference", "references", "textbook", "textbooks", "book", "books"
+        ])
+        is_code_or_name_lookup = any(k in q_combined for k in [
+            "course code", "subject code", "code for", "code of",
+            "course name", "subject name", "name for", "name of",
+            "what course is", "which course is", "what subject is", "which subject is",
+            "full name", "meaning of"
+        ])
+
+        matched_course = resolve_course_code_or_name(neo4j_driver, search_query) or resolve_course_code_or_name(neo4j_driver, question)
+        if matched_course:
+            c_code = matched_course["code"]
+            details = execute_graph_course_details_query(neo4j_driver, c_code)
+            if details:
+                # 1. Dedicated ground truth for Course Code <-> Course Name lookups
+                if is_code_or_name_lookup:
+                    context_parts.append("--- COURSE CODE & NAME LOOKUP (OFFICIAL GROUND TRUTH) ---")
+                    context_parts.append(f"Official Course Code: {details['code']}")
+                    context_parts.append(f"Official Course Title: {details['name']}")
+                    context_parts.append(f"Credits: {details.get('credits', 'N/A')} (Lecture: {details.get('L', 0)}, Tutorial: {details.get('T', 0)}, Practical: {details.get('P', 0)})")
+                    from query_neo4j import find_all_matching_courses
+                    other_courses = [c for c in find_all_matching_courses(neo4j_driver, search_query) if c["code"] != details["code"]]
+                    if other_courses:
+                        context_parts.append("Related Courses in Curriculum:")
+                        for oc in other_courses:
+                            context_parts.append(f"- {oc['code']}: {oc['name']} ({oc.get('credits', 'N/A')} credits)")
+
+                # 2. Dedicated ground truth for Textbooks & Reference queries
+                if is_ref_or_book:
+                    context_parts.append(f"--- OFFICIAL TEXTBOOKS & REFERENCES: {details['code']} ({details['name']}) ---")
+                    if details.get("textbooks"):
+                        context_parts.append("Prescribed Textbooks:\n" + "\n".join(f"{i}. {tb}" for i, tb in enumerate(details["textbooks"], 1)))
+                    else:
+                        context_parts.append("Prescribed Textbooks: None explicitly listed.")
+                    if details.get("references"):
+                        context_parts.append("Reference Books:\n" + "\n".join(f"{i}. {ref}" for i, ref in enumerate(details["references"], 1)))
+                    else:
+                        context_parts.append("Reference Books: None explicitly listed.")
+
+                # 3. Standard Course Details
+                if not is_code_or_name_lookup and not is_ref_or_book:
+                    context_parts.append(f"--- COURSE DETAILS: {details['code']} - {details['name']} ---")
+                    context_parts.append(f"Credits: {details.get('credits', 'N/A')} (L: {details.get('L')}, T: {details.get('T')}, P: {details.get('P')})")
+                    if details.get("eval_ratio"):
+                        context_parts.append(f"Evaluation Pattern Ratio: {details['eval_ratio']}")
+                    if details.get("assessments"):
+                        assess_str = ", ".join(f"{a['name']}: {a['marks']} marks" for a in details["assessments"] if a.get("name"))
+                        if assess_str:
+                            context_parts.append(f"Assessment Components: {assess_str}")
+                    if details.get("textbooks"):
+                        context_parts.append("Textbooks:\n" + "\n".join(f"- {tb}" for tb in details["textbooks"]))
+                    if details.get("references"):
+                        context_parts.append("References:\n" + "\n".join(f"- {ref}" for ref in details["references"]))
+                    if details.get("unit_topics"):
+                        units_map = {}
+                        for ut in details["unit_topics"]:
+                            u_num = ut.get("unit_num") or 1
+                            u_title = ut.get("unit_title") or f"Unit {u_num}"
+                            if u_num not in units_map:
+                                units_map[u_num] = {"title": u_title, "topics": []}
+                            if ut.get("topic") and ut["topic"] not in units_map[u_num]["topics"]:
+                                units_map[u_num]["topics"].append(ut["topic"])
+                        for u_num in sorted(units_map):
+                            u_info = units_map[u_num]
+                            context_parts.append(f"Unit {u_num} ({u_info['title']}): {', '.join(u_info['topics'])}")
+
         syllabus_res = execute_graph_syllabus_query(neo4j_driver, search_query)
         match_type   = syllabus_res.get("match_type")
 
@@ -774,7 +888,7 @@ async def chat_endpoint(
     # Stream response and cache it
     async def stream_and_cache():
         full_response = []
-        async for chunk in generate_answer_stream(question, final_context):
+        async for chunk in generate_answer_stream(question, final_context, history=history):
             full_response.append(chunk)
             yield chunk
 

@@ -88,13 +88,80 @@ async def embed_batch(texts: List[str]) -> List[List[float]]:
     return [await embed_text(t) for t in texts]
 
 
+def is_valid_embedding(emb) -> bool:
+    """
+    Verifies that an embedding is an accepted 1D numeric vector:
+    1. Accepted 1D sequence (list, tuple, or numpy array).
+    2. Non-empty.
+    3. All values are numeric.
+    4. Boolean values are strictly NOT accepted as numeric vector components.
+    5. All values are finite (no NaN, inf, -inf).
+    6. Vector norm is finite and strictly greater than zero.
+    """
+    if emb is None:
+        return False
+    if hasattr(emb, "ndim"):
+        if emb.ndim != 1 or emb.size == 0:
+            return False
+        if hasattr(emb, "dtype") and emb.dtype == bool:
+            return False
+        emb_iterable = emb
+    elif isinstance(emb, (list, tuple)):
+        if len(emb) == 0:
+            return False
+        emb_iterable = emb
+    else:
+        return False
+
+    norm_sq = 0.0
+    for v in emb_iterable:
+        if isinstance(v, bool):
+            return False
+        if not isinstance(v, (int, float)):
+            try:
+                if hasattr(v, "item"):
+                    v = v.item()
+                    if isinstance(v, bool) or not isinstance(v, (int, float)):
+                        return False
+                else:
+                    return False
+            except Exception:
+                return False
+        if math.isnan(v) or math.isinf(v):
+            return False
+        norm_sq += float(v * v)
+
+    if math.isnan(norm_sq) or math.isinf(norm_sq) or norm_sq <= 0.0:
+        return False
+
+    return True
+
+
+def safe_cosine_similarity(a: List[float], b: List[float]) -> Optional[float]:
+    """
+    Defensively calculates cosine similarity between two validated vectors.
+    Returns float in [-1.0, 1.0] if finite, else None.
+    """
+    try:
+        if not is_valid_embedding(a) or not is_valid_embedding(b):
+            return None
+        if len(a) != len(b):
+            return None
+        dot = sum(float(x) * float(y) for x, y in zip(a, b))
+        mag_a = math.sqrt(sum(float(x) * float(x) for x in a))
+        mag_b = math.sqrt(sum(float(y) * float(y) for y in b))
+        if mag_a <= 0.0 or mag_b <= 0.0:
+            return None
+        sim = dot / (mag_a * mag_b)
+        if math.isnan(sim) or math.isinf(sim):
+            return None
+        return sim
+    except Exception as e:
+        print(f"[Embedding] Error during cosine similarity calculation: {e}")
+        return None
+
+
 def cosine_similarity(a: List[float], b: List[float]) -> float:
-    """Cosine similarity between two vectors."""
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    mag_a = math.sqrt(sum(x * x for x in a))
-    mag_b = math.sqrt(sum(x * x for x in b))
-    if mag_a == 0 or mag_b == 0:
-        return 0.0
-    return dot / (mag_a * mag_b)
+    """Safe cosine similarity between two vectors, returning 0.0 on failure."""
+    sim = safe_cosine_similarity(a, b)
+    return sim if sim is not None else 0.0

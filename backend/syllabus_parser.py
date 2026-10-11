@@ -26,7 +26,7 @@ PAGE_OTHER = "OTHER"
 
 # Patterns compiled once at module level
 _COURSE_HEADER_RE = re.compile(
-    r"^(\d{2}[A-Z]{3}\d{3})\s+(.*?)\s+L-T-P-C\s*:\s*([\d\[\]-]+)-([\d\[\]-]+)-([\d\[\]-]+)-([\d\[\]-]+)",
+    r"^(\d{2}[A-Z]{3}\d{3})\s+(.*?)\s+L-T-P-C\s*:\s*(\S+.*)",
     re.IGNORECASE | re.MULTILINE,
 )
 _COURSE_CODE_RE = re.compile(r"\b\d{2}[A-Z]{3}\d{3}\b", re.IGNORECASE)
@@ -35,7 +35,9 @@ _PO_LINE_RE = re.compile(r"^(PO\d+)\s*[:\-]\s*(.+)", re.IGNORECASE | re.MULTILIN
 _PSO_LINE_RE = re.compile(r"^(PSO\d+)\s*[:\-]\s*(.+)", re.IGNORECASE | re.MULTILINE)
 _PEO_BULLET_RE = re.compile(r"^[•\-\*]\s*(.+)", re.MULTILINE)
 _CO_LINE_RE = re.compile(r"^(CO\d+)\s*[:\-]\s*(.+)", re.IGNORECASE | re.MULTILINE)
-_PREREQ_RE = re.compile(r"Pre[-\s]*Requisite[s]?\s*[:\-]\s*(.+)", re.IGNORECASE)
+_PREREQ_RE = re.compile(
+    r"Pre[-\s]*Requisite[s]?\s*(?:\([^)]*\))?\s*[:\-]\s*(.+)", re.IGNORECASE
+)
 _LTTPC_RE = re.compile(r"([\d\[\]]+)[-\s]([\d\[\]]+)[-\s]([\d\[\]]+)[-\s]([\d\[\]]+)")
 _EVAL_RATIO_RE = re.compile(r"(\d{2})\s*:\s*(\d{2})")
 _SEMESTER_HDR_RE = re.compile(
@@ -100,6 +102,9 @@ def _sv_id(dept: str, year: str) -> str:
 def _classify_page(page_num: int, text: str) -> str:
     if page_num == 0:
         return PAGE_COVER
+    # If a course header with L-T-P-C is present on this page, it is a course detail page
+    if _COURSE_HEADER_RE.search(text):
+        return PAGE_COURSE_DETAIL
     tu = text.upper()
     if any(
         k in tu
@@ -116,8 +121,6 @@ def _classify_page(page_num: int, text: str) -> str:
         return PAGE_GENERAL_INFO
     if _BASKET_HDR_RE.search(text):
         return PAGE_ELECTIVE
-    if _COURSE_HEADER_RE.search(text):
-        return PAGE_COURSE_DETAIL
     if _SEMESTER_HDR_RE.search(text) and _COURSE_CODE_RE.search(text):
         return PAGE_SEMESTER_TABLE
     if any(
@@ -741,10 +744,18 @@ def _parse_courses(page_texts, page_type_idx, page_tables) -> list:
         for hdr_match in _COURSE_HEADER_RE.finditer(full_text):
             code = hdr_match.group(1).upper()
             name = hdr_match.group(2).strip()
-            l_ = hdr_match.group(3)
-            t_ = hdr_match.group(4)
-            p_ = hdr_match.group(5)
-            c_ = hdr_match.group(6)
+            ltpc_raw = hdr_match.group(3).strip()
+            
+            # Robust extraction of L, T, P, C
+            m_ltpc = _LTTPC_RE.search(ltpc_raw)
+            if m_ltpc:
+                l_, t_, p_, c_ = m_ltpc.group(1), m_ltpc.group(2), m_ltpc.group(3), m_ltpc.group(4)
+            else:
+                m_pf = re.match(r"^(\d+)\s+(\d+)\s+(\d+)[-\s]+([A-Za-z0-9/]+)", ltpc_raw)
+                if m_pf:
+                    l_, t_, p_, c_ = m_pf.group(1), m_pf.group(2), m_pf.group(3), m_pf.group(4)
+                else:
+                    l_, t_, p_, c_ = "0", "0", "0", ltpc_raw
 
             start = hdr_match.end()
             next_hdr = _COURSE_HEADER_RE.search(full_text, start)
@@ -803,13 +814,37 @@ def _parse_courses(page_texts, page_type_idx, page_tables) -> list:
             # Prerequisites
             pre_m = _PREREQ_RE.search(body)
             if pre_m:
-                for part in re.split(r"[,;]", pre_m.group(1).strip()):
+                prereq_raw = pre_m.group(1).split("Course Objectives")[0].split("Course Outcomes")[0].strip()
+                # Common course alias mapping from syllabus handbook
+                alias_map = {
+                    "discretemathematics": "23MAT116",
+                    "datastructureandalgorithms": "23CSE203",
+                    "datastructuresandalgorithms": "23CSE203",
+                    "linearalgebra": "23MAT117",
+                    "probabilityandrandomprocesses": "23MAT206",
+                    "computerorganizationandarchitecture": "23CSE213",
+                    "computerarchitecture": "23CSE213",
+                    "theoryofcomputation": "23CSE303",
+                    "computernetworks": "23CSE302",
+                    "machinelearning": "23CSE311",
+                    "operatingsystems": "23CSE212",
+                    "embeddedsystems": "23CSE214",
+                }
+                # Split on comma, semicolon, or slash
+                for part in re.split(r"[,;/]", prereq_raw):
                     part = part.strip()
+                    if not part:
+                        continue
                     cm = _COURSE_CODE_RE.search(part)
                     if cm:
                         course["prerequisites_courses"].append(cm.group(0).upper())
-                    elif len(part) > 3:
-                        course["prerequisites_knowledge"].append(part)
+                    else:
+                        cleaned = re.sub(r"2[23][A-Z]{3}XXX|19[A-Z]{3}\d{3}", "", part, flags=re.IGNORECASE)
+                        norm = re.sub(r"[^a-z0-9]", "", cleaned.lower())
+                        if norm in alias_map:
+                            course["prerequisites_courses"].append(alias_map[norm])
+                        elif len(part) > 3:
+                            course["prerequisites_knowledge"].append(part)
 
             # Course Outcomes
             course["outcomes"] = [
@@ -1083,6 +1118,7 @@ def _write_neo4j(
                     """
                     MATCH (c:Course {code: $code, dept: $dept, year: $year})
                     MERGE (pre:Course {code: $pre_code, dept: $dept, year: $year})
+                    MERGE (c)-[:REQUIRES]->(pre)
                     MERGE (c)-[:REQUIRES_PREREQUISITE]->(pre)
                 """,
                     code=code,

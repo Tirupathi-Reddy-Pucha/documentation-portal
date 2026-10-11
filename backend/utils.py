@@ -1,11 +1,18 @@
 import base64
+import math
+import hashlib
 import io
 import json
 import os
 
 import httpx
 from dotenv import load_dotenv
-from embedder import embed_text as _cached_embed_text
+from embedder import (
+    embed_text as _cached_embed_text,
+    is_valid_embedding,
+    cosine_similarity,
+    safe_cosine_similarity,
+)
 
 # Load environment variables from the .env file at the project root.
 # os.path.dirname(__file__) gives us the 'backend/' folder.
@@ -466,8 +473,24 @@ def save_to_neo4j(neo4j_driver, course_code: str, triplets: list[dict]):
                 print(f"Failed to write triplet {triplet} to Neo4j: {e}")
 
 
+def _format_history_block(history: list[dict] = None) -> str:
+    """Formats the previous conversation turns for conversational memory."""
+    if not history:
+        return ""
+    lines = ["Conversation History (Previous turns in this session):"]
+    for msg in history:
+        role = "Student" if msg.get("role") == "user" else "Assistant"
+        content = msg.get("content", "").strip()
+        if content:
+            # Keep each historical message concise to save context window
+            summary = content if len(content) <= 500 else content[:500] + "..."
+            lines.append(f"{role}: {summary}")
+    lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 # 5. Answer Generation — Produce an answer based on retrieved context
-async def generate_answer(question: str, context: str) -> str:
+async def generate_answer(question: str, context: str, history: list[dict] = None) -> str:
     """
     Takes the student's original question, the retrieved context from
     PostgreSQL/Neo4j, and previous conversation history, and asks the LLM for an answer.
@@ -513,7 +536,7 @@ Answer:
         return f"ℹ️ *(Note: AI reformatting timed out. Showing direct database search results below)*\n\n{context}"
 
 
-async def generate_answer_stream(question: str, context: str):
+async def generate_answer_stream(question: str, context: str, history: list[dict] = None):
     """
     Streams the AI response chunk by chunk as it generates, with conversational memory.
     """
@@ -704,16 +727,20 @@ def build_syllabus_kg(neo4j_driver, dept: str, year: str, courses: list):
                     if not t_name:
                         continue
 
+                    import hashlib
+                    t_id = hashlib.md5(f"{c_code}_{u_num}_{t_name}".encode()).hexdigest()
                     session.run(
                         """
                         MATCH (u:Unit {number: $u_num, title: $u_title, course_code: $c_code})
                         MERGE (t:Topic {name: $t_name, course_code: $c_code})
+                        ON CREATE SET t.topic_id = $t_id, t.id = $t_id
                         MERGE (u)-[:HAS_TOPIC]->(t)
                     """,
                         u_num=u_num,
                         u_title=u_title,
                         c_code=c_code,
                         t_name=t_name,
+                        t_id=t_id,
                     )
 
                     for subtopic in topic.get("subtopics", []):
@@ -850,6 +877,9 @@ If no questions are found, return {"questions": []}. No markdown, no explanation
                 ]
             else:
                 return []
+
+    except Exception as e:
+        print(f"Failed to extract PYQ questions: {e}")
         return []
 
 
@@ -866,6 +896,103 @@ def clean_formula_text(text: str) -> str:
     text = re.sub(r"[^\w\s\+\-\*\/\=\(\)\[\]\{\}\\\$\.\,\:\_\^\@\%]+", " ", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+class InvalidTopicMappingError(Exception):
+    """Raised inside Neo4j transaction callbacks to force rollback when topic validation fails."""
+    pass
+
+
+def normalize_question_number(q_num: str | None) -> str:
+    """
+    Safely normalizes question number string while preserving distinctions
+    between parent questions and subquestions (e.g. '1', '1(a)', 'Q1' vs 'Q1(a)').
+    """
+    if not q_num:
+        return ""
+    q_str = str(q_num).strip()
+    if q_str.lower() in ("unknown", "none", "null", ""):
+        return ""
+    m = re.match(r'^(?:Question|Q\.?)\s*([0-9]+(?:\s*\(?[a-zA-Z0-9]+\)?)?.*)$', q_str, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return q_str
+
+
+def generate_canonical_question_id(
+    course_code: str,
+    document_id: str | None = None,
+    question_number: str | None = None,
+    page_num: int | str | None = None,
+    question_text: str | None = None,
+) -> str:
+    """
+    Shared canonical question ID generator for all ingestion paths.
+    Deterministic format: md5(f"{doc_part}_{course_code}_{q_num_part}_p{page_part}")
+    with explicit safe fallbacks when metadata is missing.
+    """
+    c_code = str(course_code or "UNKNOWN").strip().upper()
+    doc_part = str(document_id).strip() if document_id and str(document_id).strip() not in ("None", "", "nodoc") else "nodoc"
+    
+    norm_q = normalize_question_number(question_number)
+    
+    if page_num is not None and str(page_num).strip() not in ("None", "", "nopage"):
+        p_str = str(page_num).strip().lower()
+        if p_str.startswith("p"):
+            p_str = p_str[1:]
+        page_part = p_str
+    else:
+        page_part = "nopage"
+
+    q_text_clean = str(question_text or "").strip()
+    text_hash = hashlib.md5(q_text_clean.encode("utf-8")).hexdigest()[:8] if q_text_clean else "notext"
+
+    if not norm_q and page_part == "nopage" and doc_part == "nodoc":
+        id_str = f"nodoc_{c_code}_noqnum_{text_hash}"
+    elif not norm_q:
+        id_str = f"{doc_part}_{c_code}_noqnum_{text_hash}_p{page_part}"
+    elif doc_part == "nodoc":
+        id_str = f"nodoc_{c_code}_{norm_q}_p{page_part}_{text_hash}"
+    else:
+        id_str = f"{doc_part}_{c_code}_{norm_q}_p{page_part}"
+
+    return hashlib.md5(id_str.encode("utf-8")).hexdigest()
+
+
+def check_evidence_acceptance(cand: dict) -> tuple[bool, float]:
+    """
+    Shared evidence acceptance helper evaluating the deterministic acceptance policy:
+    A. Both lexical and semantic evidence:
+       - Semantic similarity >= 0.65
+       - BM25 rank <= 3
+       Returns (True, sem_score)
+    B. Semantic-only evidence:
+       - Semantic rank exists (and lexical does not)
+       - Semantic similarity >= 0.70
+       Returns (True, sem_score)
+    C. Lexical-only evidence:
+       - BM25 rank exists (and semantic does not)
+       - BM25 score > 5.0
+       Returns (True, 0.5)
+    D. Otherwise:
+       Returns (False, 0.0)
+    """
+    r_lex = cand.get("r_lex")
+    r_sem = cand.get("r_sem")
+    sem_score = float(cand.get("sem_score", 0.0))
+    bm25_score = float(cand.get("bm25_score", 0.0))
+
+    if r_lex is not None and r_sem is not None:
+        if sem_score >= 0.65 and r_lex <= 3:
+            return True, sem_score
+    elif r_sem is not None and r_lex is None:
+        if sem_score >= 0.70:
+            return True, sem_score
+    elif r_lex is not None and r_sem is None:
+        if bm25_score > 5.0:
+            return True, 0.5
+
+    return False, 0.0
 
 
 async def map_questions_to_kg(
@@ -887,6 +1014,108 @@ async def map_questions_to_kg(
         course_code, syllabus_context, questions
     )
     print(f"[PYQ Vision] Semantic mapper returned {len(mapping)} matched questions.")
+
+    def _update_graph_tx(tx, q_id, q_text, q_num, marks, implicit_formulas, doc_id, c_code, img_url, t_data_list):
+        valid_topics = []
+        if t_data_list:
+            for t_data in t_data_list:
+                if not isinstance(t_data, dict):
+                    raise InvalidTopicMappingError(f"Topic item must be a dictionary, got {type(t_data)}")
+                t_id = t_data.get("topic_id")
+                if not t_id or not isinstance(t_id, str):
+                    raise InvalidTopicMappingError(f"Missing or non-string topic_id: {t_id}")
+                
+                raw_conf = t_data.get("confidence", 0.8)
+                if isinstance(raw_conf, bool) or not isinstance(raw_conf, (int, float)):
+                    raise InvalidTopicMappingError(f"Non-numeric confidence {raw_conf!r} for topic {t_id}")
+                conf = float(raw_conf)
+                if not math.isfinite(conf) or not (0.0 <= conf <= 1.0):
+                    raise InvalidTopicMappingError(f"Out of bounds confidence {conf} for topic {t_id}")
+
+                records = tx.run(
+                    """
+                    MATCH (t:Topic)
+                    WHERE (t.topic_id = $t_id OR t.id = $t_id OR toString(id(t)) = $t_id)
+                      AND (t.course_code = $c_code OR EXISTS { MATCH (:Course {code: $c_code})-[:HAS_UNIT]->(:Unit)-[:HAS_TOPIC]->(t) })
+                    RETURN id(t) as t_internal_id
+                    """,
+                    t_id=t_id,
+                    c_code=c_code
+                ).data()
+
+                if len(records) == 0:
+                    raise InvalidTopicMappingError(f"Topic {t_id} not found in course {c_code}")
+                if len(records) > 1:
+                    raise InvalidTopicMappingError(f"Topic {t_id} is ambiguous ({len(records)} matches) in course {c_code}")
+
+                valid_topics.append({"t_internal_id": records[0]["t_internal_id"], "conf": conf})
+
+        # All validation passed! Mutate Question node inside this transaction
+        q_result = tx.run(
+            """
+            MERGE (q:Question {id: $q_id})
+            SET q.text = $q_text, 
+                q.question_number = $q_num, 
+                q.marks = $marks, 
+                q.implicit_formulas = $implicit_formulas,
+                q.document_id = $doc_id,
+                q.course_code = $c_code,
+                q.image_url = $image_url
+            MERGE (c:Course {code: $c_code})
+            RETURN id(q) as internal_id
+            """,
+            q_id=q_id,
+            c_code=c_code,
+            q_text=q_text,
+            q_num=q_num,
+            marks=marks,
+            implicit_formulas=implicit_formulas,
+            doc_id=doc_id,
+            image_url=img_url,
+        ).single()
+
+        if not q_result:
+            raise RuntimeError("Failed to merge Question node")
+        internal_id = q_result["internal_id"]
+
+        if valid_topics:
+            # Safe replacement: delete ONLY TESTS_TOPIC and BELONGS_TO, preserving MAPPED_TO_CO and EXTRACTED_FROM
+            tx.run(
+                """
+                MATCH (q) WHERE id(q) = $internal_id
+                OPTIONAL MATCH (q)-[r1:TESTS_TOPIC]->()
+                OPTIONAL MATCH (q)-[r2:BELONGS_TO]->(:Course)
+                DELETE r1, r2
+                """,
+                internal_id=internal_id
+            )
+            for vt in valid_topics:
+                tx.run(
+                    """
+                    MATCH (q) WHERE id(q) = $internal_id
+                    MATCH (t) WHERE id(t) = $t_internal_id
+                    MERGE (q)-[r:TESTS_TOPIC]->(t)
+                    SET r.confidence = $conf, r.review_status = 'pending_review'
+                    """,
+                    internal_id=internal_id,
+                    t_internal_id=vt["t_internal_id"],
+                    conf=vt["conf"]
+                )
+        else:
+            # Legitimate abstention -> course fallback
+            tx.run(
+                """
+                MATCH (q) WHERE id(q) = $internal_id
+                MATCH (c:Course {code: $c_code})
+                OPTIONAL MATCH (q)-[r1:TESTS_TOPIC]->()
+                OPTIONAL MATCH (q)-[r2:BELONGS_TO]->(:Course)
+                DELETE r1, r2
+                MERGE (q)-[:BELONGS_TO]->(c)
+                """,
+                internal_id=internal_id,
+                c_code=c_code,
+            )
+        return True
 
     with neo4j_driver.session() as session:
         for i, q in enumerate(questions):
@@ -912,45 +1141,36 @@ async def map_questions_to_kg(
             q_num = str(q.get("question_number", ""))
             marks = str(q.get("marks", ""))
 
-            # Create question and attach to course
-            q_result = session.run(
-                """
-                MERGE (c:Course {code: $c_code})
-                CREATE (q:Question {
-                    id: $q_id,
-                    text: $q_text, 
-                    question_number: $q_num, 
-                    marks: $marks, 
-                    implicit_formulas: $implicit_formulas,
-                    document_id: $doc_id,
-                    course_code: $c_code,
-                    image_url: $image_url
-                })
-                MERGE (q)-[:BELONGS_TO]->(c)
-                RETURN id(q) as internal_id
-            """,
-                c_code=course_code,
-                q_text=q_text,
-                q_num=q_num,
-                marks=marks,
-                implicit_formulas=implicit_formulas,
-                doc_id=str(document_id) if document_id else "",
-                image_url=str(image_url) if image_url else "",
-            ).single()
+            # Canonical question ID generation
+            q_id = q.get("id")
+            if not q_id:
+                page_part = q.get("page_num", "nopage")
+                q_id = generate_canonical_question_id(
+                    course_code=course_code,
+                    document_id=document_id,
+                    question_number=q_num,
+                    page_num=page_part,
+                    question_text=q_text,
+                )
 
-            if q_result:
-                internal_id = q_result["internal_id"]
-                topic_ids = mapping.get(i, [])
-                for t_id in topic_ids:
-                    session.run(
-                        """
-                        MATCH (q) WHERE id(q) = $internal_id
-                        MATCH (t:Topic {topic_id: $t_id})
-                        MERGE (q)-[:TESTS]->(t)
-                    """,
-                        internal_id=internal_id,
-                        t_id=t_id,
-                    )
+            mapped_data = mapping.get(i, [])
+            try:
+                session.execute_write(
+                    _update_graph_tx,
+                    q_id,
+                    q_text,
+                    q_num,
+                    marks,
+                    implicit_formulas,
+                    str(document_id) if document_id else "",
+                    course_code,
+                    str(image_url) if image_url else "",
+                    mapped_data
+                )
+            except InvalidTopicMappingError as e:
+                print(f"[Graph] Invalid topic mapping proposal for question {q_id}: {e}. Aborted without modifying existing mappings.")
+            except Exception as e:
+                print(f"[Graph] Database error during mapping update for question {q_id}: {e}. Skipping question to isolate failure without aborting batch.")
 
 
 import hashlib
@@ -1282,10 +1502,14 @@ def extract_pyq_structured(
                         f"[PYQ Crop] Failed for Q{span['q_num']} page {page_num + 1}: {crop_err}"
                     )
 
-            # Build the unique question ID (include document_id to prevent cross-PDF collisions)
-            q_id = hashlib.md5(
-                f"{document_id}_{course_code}_{span['q_num']}_p{page_num}".encode()
-            ).hexdigest()
+            # Build the canonical question ID
+            q_id = generate_canonical_question_id(
+                course_code=course_code,
+                document_id=document_id,
+                question_number=span["q_num"],
+                page_num=page_num,
+                question_text=span["q_text"],
+            )
 
             structured_questions.append(
                 {
@@ -1330,9 +1554,133 @@ async def map_pyq_structured_to_kg(
     )
     print(f"[PYQ] Semantic mapper returned {len(mapping)} matched questions.")
 
+    def _update_structured_graph_tx(tx, q_id, q_text, btl, marks, has_fig, img_url, doc_id, c_code, q_num, t_data_list, co_tag):
+        valid_topics = []
+        if t_data_list:
+            for t_data in t_data_list:
+                if not isinstance(t_data, dict):
+                    raise InvalidTopicMappingError(f"Topic item must be a dictionary, got {type(t_data)}")
+                t_id = t_data.get("topic_id")
+                if not t_id or not isinstance(t_id, str):
+                    raise InvalidTopicMappingError(f"Missing or non-string topic_id: {t_id}")
+                
+                raw_conf = t_data.get("confidence", 0.8)
+                if isinstance(raw_conf, bool) or not isinstance(raw_conf, (int, float)):
+                    raise InvalidTopicMappingError(f"Non-numeric confidence {raw_conf!r} for topic {t_id}")
+                conf = float(raw_conf)
+                if not math.isfinite(conf) or not (0.0 <= conf <= 1.0):
+                    raise InvalidTopicMappingError(f"Out of bounds confidence {conf} for topic {t_id}")
+
+                records = tx.run(
+                    """
+                    MATCH (t:Topic)
+                    WHERE (t.topic_id = $t_id OR t.id = $t_id OR toString(id(t)) = $t_id)
+                      AND (t.course_code = $c_code OR EXISTS { MATCH (:Course {code: $c_code})-[:HAS_UNIT]->(:Unit)-[:HAS_TOPIC]->(t) })
+                    RETURN id(t) as t_internal_id
+                    """,
+                    t_id=t_id,
+                    c_code=c_code
+                ).data()
+
+                if len(records) == 0:
+                    raise InvalidTopicMappingError(f"Topic {t_id} not found in course {c_code}")
+                if len(records) > 1:
+                    raise InvalidTopicMappingError(f"Topic {t_id} is ambiguous ({len(records)} matches) in course {c_code}")
+
+                valid_topics.append({"t_internal_id": records[0]["t_internal_id"], "conf": conf})
+
+        # All validation passed! Mutate Question node
+        q_result = tx.run(
+            """
+            MERGE (q:Question {id: $q_id})
+            SET q.text = $q_text, 
+                q.btl = $btl, 
+                q.marks = $marks, 
+                q.has_figure = $has_fig, 
+                q.image_url = $image_url,
+                q.document_id = $doc_id,
+                q.course_code = $c_code,
+                q.question_number = $q_num
+            MERGE (c:Course {code: $c_code})
+            RETURN id(q) as internal_id
+            """,
+            q_id=q_id,
+            c_code=c_code,
+            q_text=q_text,
+            btl=btl,
+            marks=marks,
+            has_fig=has_fig,
+            doc_id=doc_id,
+            image_url=img_url,
+            q_num=q_num
+        ).single()
+
+        if not q_result:
+            raise RuntimeError("Failed to merge Question node")
+        internal_id = q_result["internal_id"]
+
+        if valid_topics:
+            tx.run(
+                """
+                MATCH (q) WHERE id(q) = $internal_id
+                OPTIONAL MATCH (q)-[r1:TESTS_TOPIC]->()
+                OPTIONAL MATCH (q)-[r2:BELONGS_TO]->(:Course)
+                DELETE r1, r2
+                """,
+                internal_id=internal_id
+            )
+            for vt in valid_topics:
+                tx.run(
+                    """
+                    MATCH (q) WHERE id(q) = $internal_id
+                    MATCH (t) WHERE id(t) = $t_internal_id
+                    MERGE (q)-[r:TESTS_TOPIC]->(t)
+                    SET r.confidence = $conf, r.review_status = 'pending_review'
+                    """,
+                    internal_id=internal_id,
+                    t_internal_id=vt["t_internal_id"],
+                    conf=vt["conf"]
+                )
+        else:
+            tx.run(
+                """
+                MATCH (q) WHERE id(q) = $internal_id
+                MATCH (c:Course {code: $c_code})
+                OPTIONAL MATCH (q)-[r1:TESTS_TOPIC]->()
+                OPTIONAL MATCH (q)-[r2:BELONGS_TO]->(:Course)
+                DELETE r1, r2
+                MERGE (q)-[:BELONGS_TO]->(c)
+                """,
+                internal_id=internal_id,
+                c_code=c_code,
+            )
+
+        if co_tag:
+            tx.run(
+                """
+                MATCH (q) WHERE id(q) = $internal_id
+                MATCH (c:Course {code: $c_code})
+                MERGE (co:CourseOutcome {id: $co_id, course_code: $c_code})
+                MERGE (q)-[:MAPPED_TO_CO]->(co)
+                MERGE (co)-[:BELONGS_TO]->(c)
+                """,
+                internal_id=internal_id,
+                c_code=c_code,
+                co_id=co_tag
+            )
+        return True
+
     with neo4j_driver.session() as session:
         for i, q in enumerate(structured_questions):
-            q_id = q["id"]
+            q_id = q.get("id")
+            if not q_id:
+                q_id = generate_canonical_question_id(
+                    course_code=q.get("course_code", c_code_overall),
+                    document_id=document_id,
+                    question_number=q.get("question_number"),
+                    page_num=q.get("page_num"),
+                    question_text=q.get("question_text"),
+                )
             q_text = q["question_text"]
             btl = q["btl_tag"]
             marks = q["marks"]
@@ -1342,56 +1690,26 @@ async def map_pyq_structured_to_kg(
             image_url = q.get("image_url", "")
             q_num = q.get("question_number", "")
 
-            # Map Question to Course
-            query = """
-                MERGE (q:Question {id: $q_id})
-                SET q.text = $q_text, 
-                    q.btl = $btl, 
-                    q.marks = $marks, 
-                    q.has_figure = $has_fig, 
-                    q.image_url = $image_url,
-                    q.document_id = $doc_id,
-                    q.course_code = $c_code,
-                    q.question_number = $q_num
-                MERGE (c:Course {code: $c_code})
-                MERGE (q)-[:BELONGS_TO]->(c)
-            """
-            session.run(
-                query,
-                q_id=q_id,
-                q_text=q_text,
-                btl=btl,
-                marks=marks,
-                has_fig=has_fig,
-                c_code=c_code,
-                image_url=image_url,
-                doc_id=str(document_id) if document_id else "",
-                q_num=q_num,
-            )
-
-            # Semantic topic mapping
-            topic_ids = mapping.get(i, [])
-            for t_id in topic_ids:
-                session.run(
-                    """
-                    MATCH (q:Question {id: $q_id})
-                    MATCH (t:Topic {topic_id: $t_id})
-                    MERGE (q)-[:TESTS]->(t)
-                """,
-                    q_id=q_id,
-                    t_id=t_id,
+            mapped_data = mapping.get(i, [])
+            try:
+                session.execute_write(
+                    _update_structured_graph_tx,
+                    q_id,
+                    q_text,
+                    btl,
+                    marks,
+                    has_fig,
+                    image_url,
+                    str(document_id) if document_id else "",
+                    c_code,
+                    q_num,
+                    mapped_data,
+                    co_tag
                 )
-
-            # Map to CO if exists
-            if co_tag:
-                co_query = """
-                    MATCH (q:Question {id: $q_id})
-                    MATCH (c:Course {code: $c_code})
-                    MERGE (co:CourseOutcome {id: $co_id, course_code: $c_code})
-                    MERGE (q)-[:MAPPED_TO_CO]->(co)
-                    MERGE (co)-[:BELONGS_TO]->(c)
-                """
-                session.run(co_query, q_id=q_id, c_code=c_code, co_id=co_tag)
+            except InvalidTopicMappingError as e:
+                print(f"[Graph] Invalid topic mapping proposal for structured question {q_id}: {e}. Aborted without modifying existing mappings.")
+            except Exception as e:
+                print(f"[Graph] Database error during structured mapping update for question {q_id}: {e}. Skipping question to isolate failure without aborting batch.")
 
 
 def execute_neo4j_pyq_search(neo4j_driver, question: str) -> list:
@@ -1484,10 +1802,10 @@ def execute_neo4j_pyq_search(neo4j_driver, question: str) -> list:
     with neo4j_driver.session() as session:
         records = session.run(
             """
-            MATCH (q:Question)-[:BELONGS_TO]->(c:Course)
+            MATCH (q:Question)
             WHERE all(word IN $words WHERE replace(toLower(q.text), "'", "") CONTAINS word)
             RETURN q.text AS q_text, q.btl AS btl, q.marks AS marks,
-                   q.image_url AS image_url, c.code AS course_code,
+                   q.image_url AS image_url, coalesce(q.course_code, "") AS course_code,
                    q.question_number AS q_num
             LIMIT 20
         """,
@@ -1576,7 +1894,7 @@ def fetch_course_topics(neo4j_driver, course_code: str) -> str:
         records = session.run(
             """
             MATCH (c:Course {code: $c_code})-[:HAS_UNIT]->(u:Unit)-[:HAS_TOPIC]->(t:Topic)
-            RETURN u.title AS unit, t.topic_id AS topic_id, t.name AS topic_name
+            RETURN u.title AS unit, coalesce(t.topic_id, t.id, toString(id(t))) AS topic_id, t.name AS topic_name
             ORDER BY u.title, t.order
         """,
             c_code=course_code,
@@ -1592,105 +1910,270 @@ def fetch_course_topics(neo4j_driver, course_code: str) -> str:
 
 
 async def semantic_map_questions_to_topics(
-    course_code: str, syllabus_context: str, questions: list
+    course_code: str, syllabus_context: str, questions: list, batch_size: int = 2
 ) -> dict:
     if not syllabus_context or syllabus_context == "No syllabus found.":
         return {}
 
     final_mapping = {}
-    unmapped_indices = list(range(len(questions)))
-    max_retries = 3
-
-    # Extract the first available topic ID for absolute fallback
     import re
+    import json
+    import httpx
+    import asyncio
+    from embedder import is_valid_embedding, cosine_similarity, safe_cosine_similarity
+    
+    try:
+        from bm25 import BM25Okapi
+    except ImportError:
+        print("[Mapper] Warning: bm25.py not found. Attempting to proceed without it.")
+        BM25Okapi = None
 
-    first_topic_match = re.search(r"\[(.*?)\]", syllabus_context)
-    fallback_topic = first_topic_match.group(1) if first_topic_match else None
+    def tokenize(text: str) -> list:
+        return re.findall(r'\b[a-zA-Z0-9]{2,}\b', text.lower())
 
-    for attempt in range(max_retries):
-        if not unmapped_indices:
-            break
+    parsed_topics = []
+    for line in syllabus_context.split("\n"):
+        match = re.match(r"\[(.*?)\]\s*(.*)", line.strip())
+        if match:
+            tid = match.group(1).strip()
+            name = match.group(2).strip()
+            parsed_topics.append({
+                "tid": tid, 
+                "name": name,
+                "tokens": tokenize(name)
+            })
 
-        questions_text = "\n".join(
-            [
-                f"Q_ID: {i} | Text: {questions[i].get('question_text', questions[i].get('text', ''))}"
-                for i in unmapped_indices
-            ]
-        )
+    if not parsed_topics:
+        return {}
 
-        prompt = f"""
-You are an expert academic curriculum mapper.
-You are given a course syllabus with explicit Topic IDs, and a list of exam questions.
-Your task is to accurately map EVERY single question to one or more Topic IDs that it tests.
+    bm25_index = None
+    if BM25Okapi:
+        bm25_corpus = [t["tokens"] for t in parsed_topics]
+        bm25_index = BM25Okapi(bm25_corpus)
 
-CRITICAL INSTRUCTION: You MUST map the following EXACT Question IDs: {unmapped_indices}. 
-FAILURE IS NOT AN OPTION. DO NOT OMIT ANY QUESTION ID.
-
-Rules:
-1. Every question MUST map to at least one Topic ID.
-2. If a question covers multiple topics, map it to all relevant Topic IDs.
-3. Use the context and implicit knowledge to deduce the correct topic even if the exact keywords are missing from the question.
-4. Output strictly JSON in the following format:
-{{
-  "mapping": [
-    {{"question_id": 0, "topic_ids": ["23CSE303_CSE_2023_u1_t1"]}},
-    {{"question_id": 1, "topic_ids": ["23CSE303_CSE_2023_u2_t4", "23CSE303_CSE_2023_u3_t1"]}}
-  ]
-}}
-Do not output any markdown formatting, only the JSON block.
-
-Syllabus Context for {course_code}:
-{syllabus_context}
-
-Questions:
-{questions_text}
-"""
+    for t in parsed_topics:
         try:
-            async with httpx.AsyncClient(
-                headers={"ngrok-skip-browser-warning": "true"}
-            ) as client:
-                response = await client.post(
-                    f"{OLLAMA_BASE_URL}/api/generate",
-                    json={
-                        "model": OLLAMA_MODEL,
-                        "prompt": prompt,
-                        "stream": False,
-                        "format": "json",
-                        "options": {"num_ctx": 16384},
-                    },
-                    timeout=180.0,
-                )
-                response.raise_for_status()
-                res_text = response.json().get("response", "{}")
-
-                match = re.search(r"\{.*\}", res_text, re.DOTALL)
-                clean_text = match.group(0) if match else res_text
-                import json
-
-                data = json.loads(clean_text)
-
-                for item in data.get("mapping", []):
-                    q_id = item.get("question_id")
-                    topic_ids = item.get("topic_ids", [])
-                    if q_id is not None and topic_ids:
-                        final_mapping[int(q_id)] = topic_ids
-
-                # Update unmapped_indices
-                unmapped_indices = [
-                    i for i in range(len(questions)) if i not in final_mapping
-                ]
-
+            t["embedding"] = await _cached_embed_text(t["name"])
         except Exception as e:
-            print(
-                f"Failed to semantic map PYQs to topics on attempt {attempt + 1}: {e}"
+            print(f"[Mapper] Topic '{t['name']}' embedding error: {e}")
+            t["embedding"] = []
+
+    sem = asyncio.Semaphore(batch_size)
+
+    async def process_single_question(i: int, q: dict):
+        try:
+            q_text = q.get("question_text", q.get("text", ""))
+            if not q_text:
+                return i, []
+
+            q_tokens = tokenize(q_text)
+            
+            # A. Lexical Retrieval (BM25)
+            bm25_scores = [0.0] * len(parsed_topics)
+            has_lexical = False
+            try:
+                if bm25_index:
+                    bm25_scores = bm25_index.get_scores(q_tokens)
+                    if any(s > 0 for s in bm25_scores):
+                        has_lexical = True
+            except Exception as e:
+                print(f"[Mapper] Q{i} Lexical retrieval error: {e}")
+                has_lexical = False
+
+            # B. Semantic Retrieval (Isolated so failure preserves BM25 evidence)
+            has_semantic = False
+            semantic_scores = [(0.0, idx) for idx in range(len(parsed_topics))]
+            try:
+                q_emb = await _cached_embed_text(q_text)
+                if is_valid_embedding(q_emb):
+                    valid_cands = 0
+                    for idx, t in enumerate(parsed_topics):
+                        t_emb = t.get("embedding")
+                        sim = safe_cosine_similarity(q_emb, t_emb)
+                        if sim is not None:
+                            semantic_scores[idx] = (sim, idx)
+                            if sim > 0.3:
+                                valid_cands += 1
+                    if valid_cands > 0:
+                        has_semantic = True
+            except Exception as e:
+                print(f"[Mapper] Q{i} Semantic retrieval error ({type(e).__name__}): {e}. Preserving BM25 evidence.")
+                has_semantic = False
+
+            if not has_lexical and not has_semantic:
+                return i, []
+
+            # C. Bounded Candidate Generation & RRF
+            bm25_candidates = sorted([(score, idx) for idx, score in enumerate(bm25_scores) if score > 0], key=lambda x: x[0], reverse=True)[:20]
+            semantic_candidates = sorted([(score, idx) for score, idx in semantic_scores if score > 0.3], key=lambda x: x[0], reverse=True)[:20]
+            
+            bm25_ranks = {idx: rank + 1 for rank, (score, idx) in enumerate(bm25_candidates)}
+            semantic_ranks = {idx: rank + 1 for rank, (score, idx) in enumerate(semantic_candidates)}
+            
+            k = 60
+            rrf_scores = []
+            candidate_indices = set(bm25_ranks.keys()).union(set(semantic_ranks.keys()))
+            for idx in candidate_indices:
+                t = parsed_topics[idx]
+                r_lex = bm25_ranks.get(idx)
+                r_sem = semantic_ranks.get(idx)
+                
+                rrf_val = 0.0
+                if r_lex:
+                    rrf_val += 1.0 / (k + r_lex)
+                if r_sem:
+                    rrf_val += 1.0 / (k + r_sem)
+                    
+                rrf_scores.append({
+                    "tid": t["tid"],
+                    "name": t["name"],
+                    "idx": idx,
+                    "bm25_score": bm25_scores[idx],
+                    "sem_score": semantic_scores[idx][0],
+                    "rrf_score": rrf_val,
+                    "r_lex": r_lex,
+                    "r_sem": r_sem
+                })
+                
+            rrf_scores.sort(key=lambda x: (x["rrf_score"], -x["idx"]), reverse=True)
+            top_candidates = rrf_scores[:5]
+            
+            if not top_candidates:
+                return i, []
+                
+            best_candidate = top_candidates[0]
+            second_best = top_candidates[1] if len(top_candidates) > 1 else None
+            
+            # Deterministic Fallback Policy function using shared evidence acceptance helper
+            def fallback_decision():
+                ok, conf = check_evidence_acceptance(best_candidate)
+                if ok:
+                    print(f"[Mapper] Q{i} Evidence accepted: '{best_candidate['name']}' (conf={conf})")
+                    return [{"topic_id": best_candidate["tid"], "confidence": conf}]
+                print(f"[Mapper] Q{i} Insufficient evidence -> Course Fallback")
+                return []
+
+            rrf_margin = best_candidate["rrf_score"] - (second_best["rrf_score"] if second_best else 0.0)
+            RRF_EARLY_EXIT_MARGIN = 0.0001
+            
+            acc_ok, acc_conf = check_evidence_acceptance(best_candidate)
+
+            is_unanimous = (best_candidate.get("r_lex") == 1 and best_candidate.get("r_sem") == 1)
+            is_high_margin = (
+                rrf_margin >= RRF_EARLY_EXIT_MARGIN 
+                and (best_candidate.get("r_lex") is not None and best_candidate["r_lex"] <= 3) 
+                and (best_candidate.get("r_sem") is not None and best_candidate["r_sem"] <= 3)
             )
 
-    # Absolute Guarantee Fallback
-    if unmapped_indices and fallback_topic:
-        print(
-            f"[PYQ Semantic Mapper] Warning: {len(unmapped_indices)} questions remained unmapped after {max_retries} attempts. Using fallback topic {fallback_topic}."
-        )
-        for i in unmapped_indices:
-            final_mapping[i] = [fallback_topic]
+            # Early exit path MUST satisfy evidence acceptance policy and retrieval ranking consensus/margin
+            if acc_ok and (is_unanimous or is_high_margin):
+                print(f"[Mapper] Q{i} RRF Consensus (Skipping LLM) - Unanimous: {is_unanimous}, Margin: {rrf_margin:.5f}, SemScore: {best_candidate['sem_score']:.3f}")
+                return i, [{"topic_id": best_candidate["tid"], "confidence": acc_conf}]
+                
+            candidate_topics_formatted = "\n".join([f"[{c['tid']}] {c['name']}" for c in top_candidates])
+
+            prompt = f"""You are an expert curriculum alignment system.
+Map the following exam question to the single most relevant topic ID from the candidate list.
+
+Candidate Topics:
+{candidate_topics_formatted}
+
+Exam Question:
+"{q_text}"
+
+Rules:
+1. Output MUST be valid JSON.
+2. "topic_id" must be the exact ID string of the most relevant topic, or null if none are relevant.
+3. "reason" must be a brief justification.
+4. "is_ambiguous" must be a true/false boolean (true if multiple topics apply strongly or if evidence is conflicting).
+5. "confidence" must be a numeric float value between 0.0 and 1.0 representing your confidence in this decision.
+
+Example Output:
+{{"topic_id": "T1", "reason": "Question explicitly asks for binary search.", "is_ambiguous": false, "confidence": 0.9}}
+"""
+            
+            async with sem:
+                try:
+                    async with httpx.AsyncClient(headers={"ngrok-skip-browser-warning": "true"}, timeout=120.0) as client:
+                        resp = await client.post(
+                            f"{OLLAMA_BASE_URL}/api/generate",
+                            json={
+                                "model": OLLAMA_MODEL,
+                                "prompt": prompt,
+                                "stream": False,
+                                "format": "json",
+                                "options": {"temperature": 0.0, "num_predict": 512},
+                            },
+                        )
+                        resp.raise_for_status()
+                        res_text = resp.json().get("response", "{}")
+                        
+                        res_text_clean = re.sub(r"<think>.*?</think>", "", res_text, flags=re.DOTALL).strip()
+                        match = re.search(r"\{.*?\}", res_text_clean, re.DOTALL)
+                        clean_json = match.group(0) if match else res_text_clean
+                        if not clean_json.strip():
+                            clean_json = "{}"
+                            
+                        parsed = json.loads(clean_json)
+                        llm_selected_tid = parsed.get("topic_id")
+                        raw_ambiguous = parsed.get("is_ambiguous")
+                        
+                        # PRIORITY 5: STRICT LLM OUTPUT VALIDATION
+                        if not isinstance(raw_ambiguous, bool):
+                            print(f"[Mapper] Q{i} LLM returned invalid non-boolean is_ambiguous -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        if raw_ambiguous is True:
+                            print(f"[Mapper] Q{i} LLM returned is_ambiguous=true -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        if not isinstance(llm_selected_tid, str) or not llm_selected_tid.strip():
+                            print(f"[Mapper] Q{i} LLM returned missing/non-string topic_id -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        if llm_selected_tid not in [c["tid"] for c in top_candidates]:
+                            print(f"[Mapper] Q{i} LLM returned invalid topic_id {llm_selected_tid} not in top candidates -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        if "confidence" not in parsed:
+                            print(f"[Mapper] Q{i} LLM returned missing confidence -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        raw_conf = parsed.get("confidence")
+                        if isinstance(raw_conf, bool) or not isinstance(raw_conf, (int, float)):
+                            print(f"[Mapper] Q{i} LLM returned non-numeric confidence {raw_conf!r} -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        confidence = float(raw_conf)
+                        if not math.isfinite(confidence) or not (0.0 <= confidence <= 1.0):
+                            print(f"[Mapper] Q{i} LLM returned out of bounds confidence {confidence} -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        LLM_ACCEPTANCE_THRESHOLD = 0.6
+                        if confidence < LLM_ACCEPTANCE_THRESHOLD:
+                            print(f"[Mapper] Q{i} LLM confidence too low ({confidence}) -> Applying fallback")
+                            return i, fallback_decision()
+                            
+                        selected_cand = next((c for c in top_candidates if c["tid"] == llm_selected_tid), None)
+                        if not selected_cand:
+                            return i, fallback_decision()
+                            
+                        print(f"[Mapper] Q{i} Selective LLM Accepted: '{selected_cand['name']}' (conf: {confidence})")
+                        return i, [{"topic_id": llm_selected_tid, "confidence": confidence}]
+
+                except Exception as e:
+                    print(f"[Mapper] Q{i} LLM failed ({type(e).__name__}) -> Applying fallback")
+                    return i, fallback_decision()
+
+        except Exception as e:
+            print(f"[Mapper] Q{i} Unexpected failure ({type(e).__name__}): {e}. Abstaining for this question to isolate failure.")
+            return i, []
+
+    tasks = [process_single_question(i, q) for i, q in enumerate(questions)]
+    results = await asyncio.gather(*tasks)
+
+    for i, res in results:
+        final_mapping[i] = res
 
     return final_mapping
+
