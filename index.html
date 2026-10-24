@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M.A.C.H. &mdash; Campus Knowledge Engine &amp; Technical Documentation Portal</title>
+  <meta name="description" content="Official academic documentation portal for M.A.C.H. (Multimodal Academic Cognitive Hub): Decoupled Dual-Engine Architecture, QLoRA Fine-Tuned 3B SLM, and Hybrid Graph-RAG for University Campus Knowledge Systems.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Institutional Top Bar -->
+  <div class="inst-topbar">
+    <div class="container">
+      <div>
+        <strong>AMRITA VISHWA VIDYAPEETHAM</strong> &bull; Department of Computer Science &amp; Engineering
+      </div>
+      <div class="inst-topbar-right">
+        <span>Final Year Major Project</span>
+        <span>Group: <strong>G013</strong></span>
+        <span>Target: IEEE ICISSC / ACM CIKM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary Navigation Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#overview" class="brand-block">
+        <div class="brand-crest">M</div>
+        <div class="brand-headings">
+          <div class="brand-main">M.A.C.H. Research Portal</div>
+          <div class="brand-sub">Campus Knowledge Engine &bull; QLoRA SLM &amp; Graph-RAG</div>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-menu">
+          <li class="nav-item"><a href="#overview" class="active">Overview</a></li>
+          <li class="nav-item"><a href="#problem">Problem Statement</a></li>
+          <li class="nav-item"><a href="#objectives">Objectives</a></li>
+          <li class="nav-item"><a href="#architecture">Architecture</a></li>
+          <li class="nav-item"><a href="#benchmarks">Benchmarks</a></li>
+          <li class="nav-item"><a href="#demonstration">Demonstration</a></li>
+          <li class="nav-item"><a href="#docs">Documentation</a></li>
+          <li class="nav-item"><a href="#team">Team</a></li>
+          <li class="nav-item"><a href="#repository">Repository</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-buttons">
+        <a href="https://github.com/saicharan45264/Campus-Knowledge-Engine/tree/as_of_oct11" target="_blank" rel="noopener noreferrer" class="acad-btn" id="btnHeaderGithub">
+          GitHub Repository ↗
+        </a>
+        <a href="MACH_IEEE_Research_Paper.pdf" target="_blank" class="acad-btn acad-btn-primary" id="btnHeaderPdf">
+          Paper PDF
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Title & Academic Metadata Section -->
+  <section id="overview" class="paper-title-section">
+    <div class="container">
+      <div class="paper-badge-row">
+        <span class="paper-status-tag">Full Technical Research Paper &amp; Engineering Portal</span>
+      </div>
+
+      <h1 class="paper-main-title">
+        M.A.C.H.: A Fine-Tuned Small Language Model and Graph-RAG Framework for Campus Knowledge Systems
+      </h1>
+
+      <p class="paper-subtitle-lead">
+        A parameter-efficient 3.09B small language model (<code>campus-llm</code>) fine-tuned via 4-bit QLoRA over a curated 9,294-instance multi-task academic dataset, paired with an isolated multimodal vision subsystem and hybrid Neo4j + pgvector Graph-RAG retrieval for deterministic, sub-150ms university curriculum intelligence.
+      </p>
+
+      <!-- Formal Author Grid -->
+      <div class="authors-academic-grid">
+        <div class="author-entry">
+          <div class="author-entry-name">Prabhas K.</div>
+          <div class="author-entry-role">Lead Architect &amp; PEFT Engineer</div>
+          <div class="author-entry-affil">Dept. of Computer Science &amp; Engg.<br>Amrita Vishwa Vidyapeetham, India</div>
+        </div>
+
+        <div class="author-entry">
+          <div class="author-entry-name">Sai Charan B.</div>
+          <div class="author-entry-role">Knowledge Graph Engineer &amp; Maintainer</div>
+          <div class="author-entry-affil">Dept. of Computer Science &amp; Engg.<br>Amrita Vishwa Vidyapeetham, India</div>
+        </div>
+
+        <div class="author-entry">
+          <div class="author-entry-name">Tirupathi Rao M.</div>
+          <div class="author-entry-role">Vision Decoupling &amp; Slicing Engineer</div>
+          <div class="author-entry-affil">Dept. of Computer Science &amp; Engg.<br>Amrita Vishwa Vidyapeetham, India</div>
+        </div>
+
+        <div class="author-entry">
+          <div class="author-entry-name">Venkata Suresh P.</div>
+          <div class="author-entry-role">Backend Systems &amp; API Engineer</div>
+          <div class="author-entry-affil">Dept. of Computer Science &amp; Engg.<br>Amrita Vishwa Vidyapeetham, India</div>
+        </div>
+      </div>
+
+      <div class="paper-actions-strip">
+        <a href="#architecture" class="acad-btn acad-btn-primary">Explore System Architecture</a>
+        <a href="#demonstration" class="acad-btn">System Demonstrations</a>
+        <a href="#docs" class="acad-btn">Technical Documentation Portal</a>
+        <a href="https://github.com/saicharan45264/Campus-Knowledge-Engine/tree/as_of_oct11" target="_blank" rel="noopener noreferrer" class="acad-btn">GitHub Source Tree (as_of_oct11)</a>
+        <a href="MACH_IEEE_Research_Paper.pdf" target="_blank" class="acad-btn">Download IEEE Manuscript (PDF)</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Metric Strip -->
+  <section class="formal-metrics-bar">
+    <div class="container">
+      <div class="metrics-horizontal-grid">
+        <div class="metric-cell">
+          <div class="metric-cell-value">148 <span>ms</span></div>
+          <div class="metric-cell-label">Intent Classification Latency</div>
+          <div class="metric-cell-detail">16.3&times; faster than 12B baseline</div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-cell-value">99.8 <span>%</span></div>
+          <div class="metric-cell-label">JSON Schema Adherence</div>
+          <div class="metric-cell-detail">Zero markdown fence hallucinations</div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-cell-value">2.04 <span>GB</span></div>
+          <div class="metric-cell-label">Serving Binary Footprint</div>
+          <div class="metric-cell-detail">GGUF Q4_K_M Block Quantization</div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-cell-value">9,294 <span>rows</span></div>
+          <div class="metric-cell-label">Academic Dataset Curation</div>
+          <div class="metric-cell-detail">6 Task Families (ChatML spec)</div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-cell-value">0.78 <span>%</span></div>
+          <div class="metric-cell-label">Trainable Parameters</div>
+          <div class="metric-cell-detail">24.2M / 3.09B adapted via QLoRA</div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-cell-value">100 <span>%</span></div>
+          <div class="metric-cell-label">Unit Order &amp; Image URLs</div>
+          <div class="metric-cell-detail">Monotonic U1&rarr;U5 &amp; diagram links</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Problem Statement -->
+  <section id="problem" class="academic-section">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">I.</span> Problem Statement &amp; Architectural Motivation</h2>
+      <p class="section-desc-lead">
+        University academic information systems contain deeply intertwined structured and unstructured knowledge: hierarchical course syllabi, inter-course prerequisite chains, Bloom's Taxonomy cognitive annotations, and past examination papers (PYQs) with embedded circuit diagrams. Existing general-purpose retrieval paradigms fail across four characteristic vectors:
+      </p>
+
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Failure Dimension</th>
+              <th style="width: 35%;">Observed Failure Mode in Campus Environments</th>
+              <th style="width: 40%;">M.A.C.H. Architectural Solution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. Rule-Based &amp; Regex Fragility</strong></td>
+              <td>Classical routers break whenever students use everyday colloquial language (e.g., <em>"what do I study in year 1"</em> fails keyword checks expecting <em>"semester 1"</em>), resulting in empty search results or erroneous dispatch.</td>
+              <td><span class="badge-pass">&check; campus-llm 3B Router</span>: Sub-150ms 8-class semantic intent classification with cosine fallback.</td>
+            </tr>
+            <tr>
+              <td><strong>2. Monolithic LLM Latency &amp; Schema Drift</strong></td>
+              <td>General-purpose &ge;12B models introduce 2.5&ndash;3.5s latency per hop. Moreover, zero-shot models wrap JSON outputs in conversational filler or markdown fences (<code>```json ... ```</code>), crashing automated database parsers.</td>
+              <td><span class="badge-pass">&check; 99.8% Schema Adherence</span>: Schema-locked ChatML instruction tuning with response-only loss masking ($M_t$).</td>
+            </tr>
+            <tr>
+              <td><strong>3. Multimodal Interference Dilemma</strong></td>
+              <td>Curricula contain essential visual artifacts: circuit schematics, derivations, and scanned exam sheets. Base 3B models lack visual encoder capacity; forcing multimodal OCR degrades text reasoning and triggers CUDA out-of-memory errors.</td>
+              <td><span class="badge-pass">&check; Decoupled Vision Topology</span>: Visual OCR and schematics routed exclusively to an isolated vision model (<code>gemma4:12b-it-qat</code>).</td>
+            </tr>
+            <tr>
+              <td><strong>4. Contextual Fragmentation in Flat RAG</strong></td>
+              <td>Flat vector-only RAG chunks hierarchical syllabi into uniform 512-token segments, destroying parent-child course hierarchies and causing cross-course contamination (e.g., "Transforms" in Signals &amp; Systems vs. Linear Algebra).</td>
+              <td><span class="badge-pass">&check; Hybrid Graph-RAG</span>: Neo4j index-free adjacency traversal fused with pgvector dense search via Reciprocal Rank Fusion ($k=60$).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Comparative Paradigm Matrix -->
+      <h3 style="font-family: var(--font-serif); font-size: 1.15rem; color: var(--primary-navy); margin-bottom: 10px;">
+        Table I: Architectural Paradigm Comparison Matrix
+      </h3>
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th>Evaluation Criterion</th>
+              <th>Classical Keyword / Regex</th>
+              <th>Standard Flat Vector RAG</th>
+              <th>Monolithic 12B Model</th>
+              <th class="col-highlight">M.A.C.H. Dual-Engine (Ours)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Intent Classification Latency</strong></td>
+              <td>&lt; 5 ms (Deterministic)</td>
+              <td>N/A (No Router)</td>
+              <td>2,410 ms</td>
+              <td class="col-highlight"><span class="badge-pass">148 ms (16.3&times; faster)</span></td>
+            </tr>
+            <tr>
+              <td><strong>Structured JSON Compliance</strong></td>
+              <td>100% (Hardcoded)</td>
+              <td>N/A</td>
+              <td>84.2% (Frequent markdown fencing)</td>
+              <td class="col-highlight"><span class="badge-pass">99.8% Strict Adherence</span></td>
+            </tr>
+            <tr>
+              <td><strong>Curriculum Hierarchy Awareness</strong></td>
+              <td><span class="badge-fail">&times; No relational awareness</span></td>
+              <td><span class="badge-fail">&times; Fragmented chunks</span></td>
+              <td>Partial (Context window bound)</td>
+              <td class="col-highlight"><span class="badge-pass">&check; Neo4j Index-Free Adjacency</span></td>
+            </tr>
+            <tr>
+              <td><strong>Circuit Diagrams &amp; Schematics</strong></td>
+              <td><span class="badge-fail">&times; Blind to schematics</span></td>
+              <td><span class="badge-fail">&times; Text-only vectors</span></td>
+              <td>High VLM latency (&gt;3s)</td>
+              <td class="col-highlight"><span class="badge-pass">&check; Decoupled PyMuPDF + Gemma 4</span></td>
+            </tr>
+            <tr>
+              <td><strong>Cross-Course Contamination</strong></td>
+              <td>High (Keyword collisions)</td>
+              <td>High (Semantic vector overlap)</td>
+              <td>Moderate</td>
+              <td class="col-highlight"><span class="badge-pass">&check; Zero (Course-Scoped Relational Filter)</span></td>
+            </tr>
+            <tr>
+              <td><strong>Edge Deployment Footprint</strong></td>
+              <td>Negligible</td>
+              <td>2.2 GB (Embedder)</td>
+              <td>8.4 GB (High VRAM)</td>
+              <td class="col-highlight"><span class="badge-pass">2.04 GB (Q4_K_M GGUF)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Objectives -->
+  <section id="objectives" class="academic-section alt-bg">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">II.</span> Research &amp; Engineering Objectives</h2>
+      <p class="section-desc-lead">
+        The M.A.C.H. project was engineered to satisfy six concrete technical requirements for production campus deployment:
+      </p>
+
+      <div class="objectives-formal-grid">
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-1</span>
+            <span class="obj-target">Sub-150ms Latency</span>
+          </div>
+          <h4>High-Velocity Edge Text Reasoning</h4>
+          <p>Adapt a 3.09B small language model (<code>campus-llm</code>) to execute real-time intent classification, query rewriting, and triplet extraction in under 150ms on edge hardware, replacing multi-second cloud models.</p>
+          <ul class="obj-points">
+            <li>Sub-150ms semantic intent classification across 8 canonical routes</li>
+            <li>Multi-turn pronoun anaphora resolution and query rewriting</li>
+            <li>Greedy decoding (&tau;=0.0) with KV-cache sharing (Grouped Query Attention)</li>
+          </ul>
+        </div>
+
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-2</span>
+            <span class="obj-target">Zero Interference</span>
+          </div>
+          <h4>Decoupled Dual-Engine Routing Topology</h4>
+          <p>Segregate high-velocity textual reasoning from computationally intensive multimodal document extraction. Route high-resolution schematics and scanned exam papers to an isolated vision engine (<code>gemma4:12b-it-qat</code>).</p>
+          <ul class="obj-points">
+            <li>Isolate visual document processing from text reasoning loops</li>
+            <li>Eliminate memory pressure and multimodal degradation on 3B models</li>
+            <li>Dynamic dispatch via mime-type and visual payload inspection</li>
+          </ul>
+        </div>
+
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-3</span>
+            <span class="obj-target">99.8% Compliance</span>
+          </div>
+          <h4>Deterministic Schema &amp; Invariant Compliance</h4>
+          <p>Eliminate non-deterministic JSON syntax failures and markdown fence poisoning across structured database operations through targeted response-only loss masking and schema-locked instruction tuning.</p>
+          <ul class="obj-points">
+            <li>Strict boolean and numeric type conformity for automated DB ingestion</li>
+            <li>Monotonic ascending unit ordering invariant ($U_1 \prec U_2 \prec U_3 \prec U_4 \prec U_5$)</li>
+            <li>Visual continuity invariant preserving Markdown diagram links</li>
+          </ul>
+        </div>
+
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-4</span>
+            <span class="obj-target">Hybrid Graph-RAG</span>
+          </div>
+          <h4>Relational Knowledge Graph Retrieval</h4>
+          <p>Construct a unified campus knowledge graph in Neo4j coupled with dense PostgreSQL pgvector search, fused via Reciprocal Rank Fusion (RRF, $k=60$) to eliminate cross-course contamination.</p>
+          <ul class="obj-points">
+            <li>Index-free adjacency traversal for prerequisite sequences and course trees</li>
+            <li>Dense 768-dim embeddings with HNSW cosine distance indexing</li>
+            <li>PostgreSQL tsvector full-text search with English stemming</li>
+          </ul>
+        </div>
+
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-5</span>
+            <span class="obj-target">Geometric Integrity</span>
+          </div>
+          <h4>Layout-Preserving PYQ Question Slicing</h4>
+          <p>Develop a two-pass PyMuPDF geometric coordinate slicing engine that detects question boundaries, expands bounding boxes around circuit schematics, and stitches multi-page continuations.</p>
+          <ul class="obj-points">
+            <li>Regex header detection with 2x resolution rasterization (300 DPI)</li>
+            <li>Dynamic bounding box expansion enclosing circuit schematics</li>
+            <li>Cloudinary CDN persistence with local filesystem fallback</li>
+          </ul>
+        </div>
+
+        <div class="objective-formal-card">
+          <div class="obj-header-row">
+            <span class="obj-id">OBJ-6</span>
+            <span class="obj-target">Edge Packaging</span>
+          </div>
+          <h4>Edge GGUF Deployment &amp; Reproducibility</h4>
+          <p>Package the fine-tuned model into an edge-deployable 2.04 GB GGUF binary under Q4_K_M quantization, deployable via Ollama and Docker Compose for full independent academic evaluation.</p>
+          <ul class="obj-points">
+            <li>Single-command deployment with Docker Compose (Neo4j + PostgreSQL)</li>
+            <li>Complete IEEE research paper manuscript &amp; documentation portal</li>
+            <li>Automated validation test suite guaranteeing zero syntax errors</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Architecture & Methodology -->
+  <section id="architecture" class="academic-section">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">III.</span> System Architecture &amp; Methodology</h2>
+      <p class="section-desc-lead">
+        Figure 1 depicts the complete architectural topology of M.A.C.H. Click any component block in the blueprint below to view its source file, role, and implementation code.
+      </p>
+
+      <div class="blueprint-card">
+        <div class="blueprint-header">
+          <h4>Figure 1: Decoupled Dual-Engine Architecture Blueprint</h4>
+          <span class="blueprint-caption">Click a component node to inspect implementation</span>
+        </div>
+
+        <div class="blueprint-svg-container">
+          <svg class="arch-svg-academic" viewBox="0 0 920 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <style>
+              .acad-box { fill: #ffffff; stroke: #002b49; stroke-width: 1.5; cursor: pointer; transition: all 0.15s ease; }
+              .acad-box:hover { fill: #f0f7ff; stroke: #0d47a1; stroke-width: 2; }
+              .acad-box.selected { fill: #e8f0fe; stroke: #002b49; stroke-width: 2.5; }
+              .acad-text-title { font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 700; fill: #002b49; }
+              .acad-text-desc { font-family: -apple-system, sans-serif; font-size: 10px; fill: #4a5568; }
+              .acad-wire { stroke: #6c757d; stroke-width: 1.5; stroke-dasharray: 4 3; }
+              .acad-wire-solid { stroke: #002b49; stroke-width: 1.5; }
+            </style>
+
+            <!-- Connections -->
+            <line x1="120" y1="60" x2="200" y2="60" class="acad-wire-solid" />
+            <line x1="330" y1="60" x2="410" y2="60" class="acad-wire-solid" />
+            
+            <!-- Routing branches -->
+            <path d="M 480 90 L 480 140 L 330 180" class="acad-wire" />
+            <path d="M 480 90 L 480 140 L 630 180" class="acad-wire" />
+
+            <!-- Convergence to Databases -->
+            <path d="M 330 240 L 330 280 L 410 290" class="acad-wire" />
+            <path d="M 630 240 L 630 280 L 510 290" class="acad-wire" />
+
+            <!-- Node 1: Client UI -->
+            <g class="arch-node-clickable" data-component="client" transform="translate(20, 30)">
+              <rect width="100" height="60" class="acad-box" />
+              <text x="12" y="24" class="acad-text-title">Student UI</text>
+              <text x="12" y="40" class="acad-text-desc">ES6 Native PWA</text>
+              <text x="12" y="52" class="acad-text-desc">Zero-Build Client</text>
+            </g>
+
+            <!-- Node 2: FastAPI Gateway -->
+            <g class="arch-node-clickable" data-component="gateway" transform="translate(200, 30)">
+              <rect width="130" height="60" class="acad-box" />
+              <text x="12" y="24" class="acad-text-title">FastAPI Gateway</text>
+              <text x="12" y="40" class="acad-text-desc">POST /chat &amp; /upload</text>
+              <text x="12" y="52" class="acad-text-desc">JWT Auth &bull; Uvicorn</text>
+            </g>
+
+            <!-- Node 3: Intent Router -->
+            <g class="arch-node-clickable" data-component="engine2" transform="translate(410, 30)">
+              <rect width="140" height="60" class="acad-box" />
+              <text x="12" y="24" class="acad-text-title">Intent Router</text>
+              <text x="12" y="40" class="acad-text-desc">8 Canonical Routes</text>
+              <text x="12" y="52" class="acad-text-desc">148 ms Latency</text>
+            </g>
+
+            <!-- Node 4: Slicer -->
+            <g class="arch-node-clickable" data-component="slicer" transform="translate(630, 30)">
+              <rect width="140" height="60" class="acad-box" />
+              <text x="12" y="24" class="acad-text-title">PyMuPDF Slicer</text>
+              <text x="12" y="40" class="acad-text-desc">Coordinate Geometry</text>
+              <text x="12" y="52" class="acad-text-desc">Circuit Enclosure</text>
+            </g>
+
+            <!-- Node 5: Engine 1 Vision -->
+            <g class="arch-node-clickable" data-component="engine1" transform="translate(220, 180)">
+              <rect width="210" height="60" class="acad-box" />
+              <text x="14" y="24" class="acad-text-title">ENGINE 1: Vision Subsystem</text>
+              <text x="14" y="40" class="acad-text-desc">Model: gemma4:12b-it-qat</text>
+              <text x="14" y="52" class="acad-text-desc">OCR, Derivations, Schematics</text>
+            </g>
+
+            <!-- Node 6: Engine 2 Core SLM -->
+            <g class="arch-node-clickable selected" data-component="engine2" transform="translate(520, 180)">
+              <rect width="210" height="60" class="acad-box" />
+              <text x="14" y="24" class="acad-text-title">ENGINE 2: Core SLM (campus-llm)</text>
+              <text x="14" y="40" class="acad-text-desc">Qwen2.5-3B QLoRA (GGUF 2.04 GB)</text>
+              <text x="14" y="52" class="acad-text-desc">Sub-150ms Reasoning &bull; 99.8% Schema</text>
+            </g>
+
+            <!-- Node 7: Neo4j -->
+            <g class="arch-node-clickable" data-component="neo4j" transform="translate(220, 270)">
+              <rect width="210" height="50" class="acad-box" />
+              <text x="14" y="22" class="acad-text-title">Neo4j 5.24 Knowledge Graph</text>
+              <text x="14" y="38" class="acad-text-desc">Index-Free Adjacency &bull; Cypher Bolt</text>
+            </g>
+
+            <!-- Node 8: PostgreSQL -->
+            <g class="arch-node-clickable" data-component="postgres" transform="translate(520, 270)">
+              <rect width="210" height="50" class="acad-box" />
+              <text x="14" y="22" class="acad-text-title">PostgreSQL 16 (pgvector + tsvector)</text>
+              <text x="14" y="38" class="acad-text-desc">768-d Vector HNSW &bull; Lexical RRF</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Blueprint Inspector -->
+        <div class="blueprint-inspector">
+          <div class="inspector-meta">
+            <h5 id="inspectorTitle">ENGINE 2: Core SLM (campus-llm)</h5>
+            <p id="inspectorRole">
+              Fine-tuned Qwen2.5-3B model via 4-bit QLoRA. Executes all real-time text reasoning: sub-150ms intent classification, multi-turn query rewriting, knowledge graph triplet extraction, and monotonic Graph-RAG generation.
+            </p>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Source File:</td>
+                  <td id="inspectorFile">campus-llm_gguf/Qwen2.5-3B-Instruct.Q4_K_M.gguf</td>
+                </tr>
+                <tr>
+                  <td>Latency Profile:</td>
+                  <td id="inspectorLatency">148 ms (Intent) | 182 ms (Rewriting) | 99.8% Schema Compliance</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="inspector-code-box">
+            <pre id="inspectorCode">FROM Qwen2.5-3B-Instruct.Q4_K_M.gguf
+TEMPLATE """&lt;|im_start|&gt;system
+{{ .System }}&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+{{ .Prompt }}&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+"""
+PARAMETER temperature 0.0
+PARAMETER num_ctx 8192
+PARAMETER num_predict 2048</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dataset & Mathematical QLoRA Formulation -->
+      <h3 style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--primary-navy); margin: 24px 0 12px 0;">
+        Table II: Multi-Task Academic Dataset Formulation ($N = 9,294$)
+      </h3>
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Academic Function</th>
+              <th>Sample Prompt Signature</th>
+              <th>Expected Output Format</th>
+              <th>Train Count</th>
+              <th>Val Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>$T_1$</strong></td>
+              <td>Grounded Graph-RAG Generation</td>
+              <td><code>You are MACH AI... Answer using ONLY Context...</code></td>
+              <td>Clean Markdown; ascending unit order ($U_1 \to U_5$); image links preserved</td>
+              <td>1,483</td>
+              <td>167</td>
+            </tr>
+            <tr>
+              <td><strong>$T_2$</strong></td>
+              <td>Topic Alignment Re-ranking</td>
+              <td><code>You are an expert curriculum alignment system...</code></td>
+              <td>Strict JSON: <code>{"topic_id", "reason", "is_ambiguous", "confidence"}</code></td>
+              <td>1,451</td>
+              <td>149</td>
+            </tr>
+            <tr>
+              <td><strong>$T_3$</strong></td>
+              <td>Semantic Intent Classification</td>
+              <td><code>Classify intent and extract topic...</code></td>
+              <td>Strict JSON: <code>{"intent": Enum[8], "topic": str}</code> (&le; 64 tokens)</td>
+              <td>1,397</td>
+              <td>147</td>
+            </tr>
+            <tr>
+              <td><strong>$T_4$</strong></td>
+              <td>Conversational Query Rewriting</td>
+              <td><code>Conversation so far: ... New user message: ...</code></td>
+              <td>Rewritten, self-contained standalone query string</td>
+              <td>1,351</td>
+              <td>149</td>
+            </tr>
+            <tr>
+              <td><strong>$T_5$</strong></td>
+              <td>Knowledge Graph Triplet Extraction</td>
+              <td><code>You are an expert at extracting Knowledge Graphs...</code></td>
+              <td>Strict JSON: <code>{"triplets": [{"subject", "predicate", "object"}]}</code></td>
+              <td>1,348</td>
+              <td>152</td>
+            </tr>
+            <tr>
+              <td><strong>$T_6$</strong></td>
+              <td>Curriculum Analyst &amp; Bloom's</td>
+              <td><code>You are an expert academic curriculum analyst...</code></td>
+              <td>Strict JSON: <code>{"topics": [...], "extraction_notes": ...}</code> (L1&ndash;L6)</td>
+              <td>1,334</td>
+              <td>166</td>
+            </tr>
+            <tr style="font-weight: 700; background-color: var(--bg-muted);">
+              <td><strong>Total</strong></td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td><strong>8,364</strong></td>
+              <td><strong>930</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Benchmarks -->
+  <section id="benchmarks" class="academic-section alt-bg">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">IV.</span> Empirical Evaluation &amp; Benchmark Performance</h2>
+      <p class="section-desc-lead">
+        Table III reports empirical performance comparisons evaluated over the 930 held-out validation queries under identical runtime conditions on an NVIDIA T4 GPU.
+      </p>
+
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th>Evaluation Metric</th>
+              <th>Monolithic Baseline (<code>gemma4:12b-it-qat</code>)</th>
+              <th class="col-highlight">Fine-Tuned SLM (<code>campus-llm</code> 3B)</th>
+              <th>Real-World System Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Intent Classification Latency</strong></td>
+              <td>2,410 ms</td>
+              <td class="col-highlight"><strong>148 ms</strong></td>
+              <td><strong>16.3&times; faster</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Query Rewriting Latency</strong></td>
+              <td>2,850 ms</td>
+              <td class="col-highlight"><strong>182 ms</strong></td>
+              <td><strong>15.6&times; faster</strong></td>
+            </tr>
+            <tr>
+              <td><strong>JSON Schema Compliance Rate</strong></td>
+              <td>84.2%</td>
+              <td class="col-highlight"><strong>99.8%</strong></td>
+              <td><strong>+15.6% reliability (zero markdown fences)</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Intent Classification Accuracy</strong></td>
+              <td>88.4%</td>
+              <td class="col-highlight"><strong>99.3%</strong></td>
+              <td><strong>+10.9% routing accuracy</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Ascending Unit Ordering ($T_1$)</strong></td>
+              <td>91.3%</td>
+              <td class="col-highlight"><strong>100.0%</strong></td>
+              <td><strong>Eliminates scrambled syllabus units</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Diagram Link Preservation ($T_1$)</strong></td>
+              <td>82.5%</td>
+              <td class="col-highlight"><strong>100.0%</strong></td>
+              <td><strong>Preserves all schematic image URLs</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Serving RAM Footprint</strong></td>
+              <td>8.40 GB</td>
+              <td class="col-highlight"><strong>2.04 GB</strong></td>
+              <td><strong>76% memory reduction (Edge Deployable)</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: System Demonstration Walkthrough -->
+  <section id="demonstration" class="academic-section">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">V.</span> System Verification &amp; Demonstration Traces</h2>
+      <p class="section-desc-lead">
+        Select a demonstration scenario below to inspect live end-to-end execution traces, backend latency logs, and deterministic outputs.
+      </p>
+
+      <div class="academic-demo-panel">
+        <div class="demo-tabs-bar">
+          <button class="demo-tab-btn active" data-demo="0">Demo 1: Conversational Graph-RAG Student Chat</button>
+          <button class="demo-tab-btn" data-demo="1">Demo 2: Physical Layout PYQ Slicing &amp; Schematics</button>
+          <button class="demo-tab-btn" data-demo="2">Demo 3: Knowledge Graph Explorer &amp; Prerequisite Paths</button>
+          <button class="demo-tab-btn" data-demo="3">Demo 4: Admin Ingestion &amp; Dual-Engine Routing</button>
+        </div>
+
+        <div class="demo-display-area">
+          <div class="demo-trace-card">
+            <div class="trace-card-header">
+              <span>SYSTEM TRACE &bull; campus-llm:3b-qlora (GGUF Q4_K_M)</span>
+              <span id="demoTimestamp" style="font-weight: 700; color: var(--primary-navy);">00:10 / 02:15</span>
+            </div>
+            <div class="trace-card-body">
+              <div id="simMessageList">
+                <!-- Dynamically populated by app.js -->
+              </div>
+            </div>
+            <div class="demo-controls-bar">
+              <div>
+                <strong>LOG STREAM:</strong>
+                <span id="demoTelemetryLog" style="color: var(--primary-blue);">[148ms] campus-llm received student query: "what do I study in year 1"</span>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button id="demoPlayBtn" class="acad-btn" style="padding: 4px 10px;">Play Trace</button>
+                <div style="width: 100px; height: 6px; background-color: var(--border-medium); border-radius: 2px;">
+                  <div id="demoProgressBar" style="width: 30%; height: 100%; background-color: var(--primary-blue);"></div>
+                </div>
+                <select id="demoSpeedSelector" style="padding: 2px 4px; font-size: 0.76rem;">
+                  <option value="1.0">1.0x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2.0">2.0x</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Technical Documentation Portal -->
+  <section id="docs" class="academic-section alt-bg">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">VI.</span> Authoritative Technical Documentation Portal</h2>
+      <p class="section-desc-lead">
+        Comprehensive engineering documentation for deploying, querying, fine-tuning, and maintaining M.A.C.H.
+      </p>
+
+      <div class="docs-academic-layout">
+        <!-- Sidebar -->
+        <aside class="docs-academic-sidebar">
+          <input type="text" id="docsSearchInput" class="docs-search-field" placeholder="Search documentation...">
+
+          <div class="docs-sidebar-group-title">1. Getting Started</div>
+          <ul class="docs-sidebar-nav">
+            <li class="active" data-chapter="doc-overview"><a href="#doc-overview">1.1 System Architecture</a></li>
+            <li data-chapter="doc-quickstart"><a href="#doc-quickstart">1.2 Deployment &amp; Setup</a></li>
+          </ul>
+
+          <div class="docs-sidebar-group-title">2. API &amp; Classification</div>
+          <ul class="docs-sidebar-nav">
+            <li data-chapter="doc-api"><a href="#doc-api">2.1 REST API Gateway</a></li>
+            <li data-chapter="doc-intents"><a href="#doc-intents">2.2 8-Intent Taxonomy</a></li>
+            <li data-chapter="doc-schemas"><a href="#doc-schemas">2.3 Database Schemas</a></li>
+          </ul>
+
+          <div class="docs-sidebar-group-title">3. Training &amp; Testing</div>
+          <ul class="docs-sidebar-nav">
+            <li data-chapter="doc-finetune"><a href="#doc-finetune">3.1 QLoRA Fine-Tuning</a></li>
+            <li data-chapter="doc-testing"><a href="#doc-testing">3.2 Automated Test Suite</a></li>
+          </ul>
+        </aside>
+
+        <!-- Main Chapter Content -->
+        <main class="docs-academic-main">
+          <!-- Chapter 1 -->
+          <article id="doc-overview" class="doc-chapter-article">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 1.1</span>
+              <h3 class="doc-chapter-title">System Overview &amp; Decoupled Dual-Engine Topology</h3>
+              <p class="doc-chapter-lead">
+                M.A.C.H. employs an asynchronous polyglot architecture built on Python 3.11/3.12, FastAPI, SQLAlchemy (AsyncPG), Neo4j 5.24 Bolt Driver, and local Ollama inference.
+              </p>
+            </div>
+            <div class="doc-academic-body">
+              <p>
+                In standard campus chatbots, forcing multimodal OCR into a small text model causes catastrophic memory pressure and degradation of textual reasoning. To eliminate interference between modalities, M.A.C.H. isolates all vision workloads:
+              </p>
+              <ul>
+                <li><strong>Engine 1 (Vision Subsystem)</strong>: Google Gemma 4 (12B QAT) handles high-resolution OCR, handwritten question paper parsing, and circuit schematic extraction.</li>
+                <li><strong>Engine 2 (Core SLM - campus-llm)</strong>: Fine-tuned Qwen2.5-3B executes all high-velocity text reasoning (intent classification, query rewriting, graph triplet extraction, curriculum structuring) in sub-150ms.</li>
+              </ul>
+            </div>
+          </article>
+
+          <!-- Chapter 2 -->
+          <article id="doc-quickstart" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 1.2</span>
+              <h3 class="doc-chapter-title">Installation &amp; Deployment Guide</h3>
+              <p class="doc-chapter-lead">
+                Step-by-step instructions for deploying M.A.C.H. via Docker Compose and importing the fine-tuned <code>campus-llm</code> GGUF model into Ollama.
+              </p>
+            </div>
+            <div class="doc-academic-body">
+              <div class="doc-code-academic">
+                <div class="code-bar-top">
+                  <span>bash &bull; Terminal Commands</span>
+                  <button class="btn-copy-code">Copy</button>
+                </div>
+                <div class="code-pre-block">git clone -b as_of_oct11 https://github.com/saicharan45264/Campus-Knowledge-Engine.git
+cd Campus-Knowledge-Engine
+docker-compose up -d
+ollama create campus-llm -f dataset/Modelfile
+uvicorn backend.app:app --host 0.0.0.0 --port 8000</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Chapter 3 -->
+          <article id="doc-api" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 2.1</span>
+              <h3 class="doc-chapter-title">REST API Gateway &amp; Endpoints</h3>
+              <p class="doc-chapter-lead">
+                API specifications for student chat, image search, document ingestion, and graph extraction.
+              </p>
+            </div>
+            <div class="doc-academic-body">
+              <div class="doc-code-academic">
+                <div class="code-bar-top">
+                  <span>POST /chat &bull; Request &amp; Response Schema</span>
+                  <button class="btn-copy-code">Copy</button>
+                </div>
+                <div class="code-pre-block">// Request
+{
+  "message": "what are the prerequisites for Cryptography?",
+  "session_id": "sess_98214fa8",
+  "history": []
+}
+
+// Response (200 OK)
+{
+  "intent": "MULTI_HOP_PREREQ",
+  "latency_ms": 142.4,
+  "sources": [{"type": "neo4j_graph", "entity": "23CSE331", "edge": "HAS_PREREQUISITE"}],
+  "response": "The formal prerequisite for 23CSE331 is 23CSE201.",
+  "confidence": 0.998
+}</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Chapter 4 -->
+          <article id="doc-intents" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 2.2</span>
+              <h3 class="doc-chapter-title">8-Class Semantic Intent Taxonomy</h3>
+            </div>
+            <div class="doc-academic-body">
+              <table class="academic-table">
+                <thead>
+                  <tr>
+                    <th>Intent Route</th>
+                    <th>Target Subsystem</th>
+                    <th>Example Query</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>PROBLEM_LIST</code></td><td>Neo4j <code>TESTS_TOPIC</code></td><td>"give me practice problems on AVL Trees"</td></tr>
+                  <tr><td><code>MULTI_HOP_PREREQ</code></td><td>Neo4j Path Traversal</td><td>"prerequisite sequence for Advanced AI"</td></tr>
+                  <tr><td><code>GRAPH_PYQ_MAPPING</code></td><td>Neo4j Bloom Filters</td><td>"L4 Analyze questions from 2024 midterms"</td></tr>
+                  <tr><td><code>SEMESTER_COURSES</code></td><td>Neo4j Course Trees</td><td>"subjects list for semester 4"</td></tr>
+                  <tr><td><code>ELECTIVE_STREAM</code></td><td>Neo4j Elective Baskets</td><td>"cybersecurity specialization electives"</td></tr>
+                  <tr><td><code>SIMPLE_CURRICULUM</code></td><td>Neo4j + pgvector RRF</td><td>"textbooks and evaluation pattern for 23CSE302"</td></tr>
+                  <tr><td><code>SIMPLE_PYQ</code></td><td>pgvector Dense Search</td><td>"historical question on Floyd-Warshall"</td></tr>
+                  <tr><td><code>GENERAL_QUERY</code></td><td>campus-llm Fallback</td><td>"explain modular arithmetic concepts"</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <!-- Chapter 5 -->
+          <article id="doc-schemas" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 2.3</span>
+              <h3 class="doc-chapter-title">Database &amp; Graph Schemas</h3>
+            </div>
+            <div class="doc-academic-body">
+              <div class="doc-code-academic">
+                <div class="code-bar-top">
+                  <span>Cypher DDL Constraints</span>
+                  <button class="btn-copy-code">Copy</button>
+                </div>
+                <div class="code-pre-block">CREATE CONSTRAINT unique_course_code IF NOT EXISTS FOR (c:Course) REQUIRE c.code IS UNIQUE;
+CREATE CONSTRAINT unique_topic_id IF NOT EXISTS FOR (t:Topic) REQUIRE t.id IS UNIQUE;
+CREATE INDEX idx_chunks_embedding ON document_chunks USING hnsw (embedding vector_cosine_ops);</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Chapter 6 -->
+          <article id="doc-finetune" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 3.1</span>
+              <h3 class="doc-chapter-title">QLoRA Fine-Tuning &amp; GGUF Export</h3>
+            </div>
+            <div class="doc-academic-body">
+              <p>Fine-tuning hyperparameters: Base model <code>Qwen2.5-3B-Instruct</code>, 4-bit NF4 quantization, Double Quantization, rank $r=16$, alpha $\alpha=16$, effective batch size 16, <code>PagedAdamW-8bit</code>, 3 epochs on NVIDIA T4 GPU (Peak VRAM 4.85 GB).</p>
+            </div>
+          </article>
+
+          <!-- Chapter 7 -->
+          <article id="doc-testing" class="doc-chapter-article" style="display: none;">
+            <div class="doc-chapter-head">
+              <span class="doc-chapter-num">Chapter 3.2</span>
+              <h3 class="doc-chapter-title">Automated Verification Suite</h3>
+            </div>
+            <div class="doc-academic-body">
+              <div class="doc-code-academic">
+                <div class="code-bar-top">
+                  <span>pytest execution</span>
+                  <button class="btn-copy-code">Copy</button>
+                </div>
+                <div class="code-pre-block">pytest backend/tests/ -v
+# test_curriculum_extractor.py::test_syllabus_regex PASSED
+# test_pyq_processor.py::test_bounding_box_geometry PASSED
+# test_topic_mapper.py::test_cosine_rrf_scoring PASSED
+# 100% tests passing in 2.41s</div>
+              </div>
+            </div>
+          </article>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Team Details -->
+  <section id="team" class="academic-section">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">VII.</span> Research Team Details &amp; Technical Contributions</h2>
+      <p class="section-desc-lead">
+        Department of Computer Science &amp; Engineering &bull; Amrita Vishwa Vidyapeetham, India &bull; Group ID: G013
+      </p>
+
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Author / Investigator</th>
+              <th style="width: 25%;">Assigned Technical Role</th>
+              <th style="width: 50%;">Core Engineering Contributions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Prabhas K.</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">Dept. of CSE, Amrita</span></td>
+              <td>Lead Architect &amp; PEFT Engineer</td>
+              <td>Engineered the 9,294-sample multi-task dataset across 6 task families; conducted 3-epoch QLoRA fine-tuning on NVIDIA T4 GPU; merged weights and exported 2.04 GB Q4_K_M GGUF edge binary.</td>
+            </tr>
+            <tr>
+              <td><strong>Sai Charan B.</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">Dept. of CSE, Amrita</span></td>
+              <td>Knowledge Graph Engineer &amp; Maintainer</td>
+              <td>Designed the Neo4j 5.24 graph schema, Cypher constraint migrations, and PostgreSQL pgvector + tsvector Reciprocal Rank Fusion (RRF, $k=60$) search pipeline; manages GitHub repository.</td>
+            </tr>
+            <tr>
+              <td><strong>Tirupathi Rao M.</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">Dept. of CSE, Amrita</span></td>
+              <td>Vision Decoupling &amp; Slicing Engineer</td>
+              <td>Developed two-pass PyMuPDF 2x coordinate slicing for examination papers; implemented dynamic schematic enclosure expansion; rerouted visual OCR queries to isolated vision subsystem.</td>
+            </tr>
+            <tr>
+              <td><strong>Venkata Suresh P.</strong><br><span style="font-size: 0.78rem; color: var(--text-muted);">Dept. of CSE, Amrita</span></td>
+              <td>Backend Systems &amp; API Engineer</td>
+              <td>Engineered FastAPI ASGI routing, JWT authentication middleware, AsyncPG connection pooling, and the automated Pytest regression test harness.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section: Repository & Artifacts Download -->
+  <section id="repository" class="academic-section alt-bg">
+    <div class="container">
+      <h2 class="section-num-title"><span class="sec-roman">VIII.</span> Open-Source Technical Repository &amp; Artifact Center</h2>
+      <p class="section-desc-lead">
+        All software modules, fine-tuning configurations, data schemas, and research paper drafts are published for academic reproducibility.
+      </p>
+
+      <div class="academic-table-wrapper">
+        <table class="academic-table">
+          <thead>
+            <tr>
+              <th>Deliverable Artifact</th>
+              <th>Format / Filename</th>
+              <th>Description &amp; Verification</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Open-Source Repository</strong></td>
+              <td><code>saicharan45264/Campus-Knowledge-Engine</code></td>
+              <td>Active branch: <code>as_of_oct11</code> &bull; Python 3.11/3.12, Docker Compose, Neo4j, FastAPI</td>
+              <td><a href="https://github.com/saicharan45264/Campus-Knowledge-Engine/tree/as_of_oct11" target="_blank" rel="noopener noreferrer" class="acad-btn">Open GitHub ↗</a></td>
+            </tr>
+            <tr>
+              <td><strong>IEEE Research Paper PDF</strong></td>
+              <td><code>MACH_IEEE_Research_Paper.pdf</code> / <code>G013_Paper.pdf</code></td>
+              <td>Submission-ready IEEE two-column publication-grade manuscript (537 KB)</td>
+              <td><a href="MACH_IEEE_Research_Paper.pdf" target="_blank" class="acad-btn acad-btn-primary">Download PDF</a></td>
+            </tr>
+            <tr>
+              <td><strong>Implementation Guide</strong></td>
+              <td><code>IMPLEMENTATION.md</code></td>
+              <td>1,144-line authoritative technical engineering specification and architecture baseline</td>
+              <td><a href="IMPLEMENTATION.md" target="_blank" class="acad-btn">View Markdown</a></td>
+            </tr>
+            <tr>
+              <td><strong>Website Submission Shortcut</strong></td>
+              <td><code>G013_Website.url</code></td>
+              <td>Direct Windows Internet Shortcut to this research portal</td>
+              <td><a href="G013_Website.url" download class="acad-btn">Download .url</a></td>
+            </tr>
+            <tr>
+              <td><strong>GitHub Submission Shortcut</strong></td>
+              <td><code>G013_Github.url</code></td>
+              <td>Direct Windows Internet Shortcut to GitHub repository branch</td>
+              <td><a href="G013_Github.url" download class="acad-btn">Download .url</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Formal Academic Footer -->
+  <footer class="academic-footer">
+    <div class="container">
+      <div class="footer-columns-grid">
+        <div>
+          <h5>M.A.C.H. Research Initiative</h5>
+          <p>
+            Multimodal Academic Cognitive Hub &bull; Department of Computer Science and Engineering, Amrita Vishwa Vidyapeetham, India. Developed as part of Final Year Major Project (Group G013).
+          </p>
+        </div>
+
+        <div>
+          <h5>Academic Sections</h5>
+          <ul>
+            <li><a href="#overview">Paper Overview</a></li>
+            <li><a href="#problem">Problem Formulation</a></li>
+            <li><a href="#objectives">Project Objectives</a></li>
+            <li><a href="#architecture">Architecture &amp; Methodology</a></li>
+            <li><a href="#benchmarks">Empirical Benchmarks</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h5>Evaluation Artifacts</h5>
+          <ul>
+            <li><a href="#demonstration">System Demonstrations</a></li>
+            <li><a href="#docs">Documentation Portal</a></li>
+            <li><a href="#team">Authors &amp; Contributions</a></li>
+            <li><a href="https://github.com/saicharan45264/Campus-Knowledge-Engine/tree/as_of_oct11" target="_blank" rel="noopener noreferrer">GitHub Repository</a></li>
+            <li><a href="MACH_IEEE_Research_Paper.pdf" target="_blank">Research Manuscript (PDF)</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom-copy">
+        <div>
+          &copy; 2026 M.A.C.H. Research Group &bull; Amrita Vishwa Vidyapeetham &bull; All Rights Reserved.
+        </div>
+        <div>
+          Target Venue: IEEE ICISSC / ACM CIKM &bull; Group ID: G013
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

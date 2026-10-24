@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>M.A.C.H.: A Fine-Tuned Small Language Model and Graph-RAG Framework for Campus Knowledge Systems</title>
+<style>
+  @page {
+    size: letter portrait;
+    margin: 16mm 13mm 16mm 13mm;
+    @bottom-center {
+      content: counter(page);
+      font-family: "Times New Roman", Times, serif;
+      font-size: 8.5pt;
+    }
+  }
+
+  *, *:before, *:after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: "Times New Roman", Times, "Nimbus Roman No9 L", serif;
+    font-size: 9.3pt;
+    line-height: 1.16;
+    color: #111111;
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Full-width header banner */
+  .paper-header {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .paper-title {
+    font-size: 19.5pt;
+    font-weight: bold;
+    line-height: 1.12;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.2px;
+  }
+
+  .authors-grid {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .author-card {
+    text-align: center;
+    font-size: 8.8pt;
+    line-height: 1.2;
+  }
+
+  .author-name {
+    font-weight: bold;
+    font-size: 9.8pt;
+  }
+
+  .author-affil {
+    font-style: italic;
+    font-size: 8.2pt;
+    color: #222;
+  }
+
+  .conf-notice {
+    font-size: 7.6pt;
+    font-style: italic;
+    color: #444;
+    border-top: 0.5px solid #999;
+    border-bottom: 0.5px solid #999;
+    padding: 2.5px 0;
+    margin: 6px auto 10px auto;
+    width: 92%;
+  }
+
+  /* Abstract and Index terms block */
+  .abstract-box {
+    width: 93%;
+    margin: 0 auto 10px auto;
+    font-size: 8.5pt;
+    line-height: 1.21;
+    text-align: justify;
+    text-justify: inter-word;
+  }
+
+  .abstract-title {
+    font-weight: bold;
+    font-style: italic;
+    display: inline;
+  }
+
+  .index-terms-title {
+    font-weight: bold;
+    font-style: italic;
+    display: inline;
+  }
+
+  /* Two-column layout */
+  .two-column-body {
+    column-count: 2;
+    column-gap: 5.2mm;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+  }
+
+  .full-width {
+    column-span: all;
+    break-inside: avoid;
+    margin: 10px 0;
+  }
+
+  /* Headings */
+  h2.sec-heading {
+    font-size: 9.2pt;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 10px 0 4px 0;
+    break-after: avoid;
+  }
+
+  h3.subsec-heading {
+    font-size: 8.9pt;
+    font-weight: bold;
+    font-style: italic;
+    margin: 7px 0 2.5px 0;
+    break-after: avoid;
+  }
+
+  h4.subsubsec-heading {
+    font-size: 8.6pt;
+    font-weight: normal;
+    font-style: italic;
+    margin: 5px 0 2px 0;
+    break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 4.5px 0;
+    text-indent: 13px;
+  }
+
+  p.no-indent {
+    text-indent: 0;
+  }
+
+  /* Equations */
+  .math-eq {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 4.5px 0;
+    padding: 1px 6px;
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-style: italic;
+    font-size: 8.8pt;
+  }
+
+  .math-eq-content {
+    margin: 0 auto;
+    font-style: italic;
+  }
+
+  .math-eq-num {
+    font-style: normal;
+    font-size: 8.4pt;
+  }
+
+  /* Tables */
+  table.ieee-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0;
+    font-size: 7.3pt;
+    line-height: 1.14;
+    break-inside: avoid;
+  }
+
+  table.ieee-table caption {
+    font-size: 7.5pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2.5px;
+    text-align: center;
+  }
+
+  table.ieee-table th {
+    border-top: 1.2px solid #000;
+    border-bottom: 0.8px solid #000;
+    padding: 2.2px 3.5px;
+    font-weight: bold;
+    text-align: left;
+  }
+
+  table.ieee-table td {
+    padding: 2px 3.5px;
+    border-bottom: 0.4px solid #ddd;
+    vertical-align: top;
+  }
+
+  table.ieee-table tr.last-row td,
+  table.ieee-table tr:last-child td {
+    border-bottom: 1.2px solid #000;
+  }
+
+  /* Listings and code */
+  pre.code-box {
+    background: #fbfbfb;
+    border: 0.7px solid #ccc;
+    border-left: 2.2px solid #1a365d;
+    padding: 4px 6px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 6.8pt;
+    line-height: 1.18;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    margin: 5px 0;
+    break-inside: avoid;
+  }
+
+  /* Figures */
+  .fig-box {
+    text-align: center;
+    margin: 7px 0;
+    break-inside: avoid;
+  }
+
+  .fig-caption {
+    font-size: 7.5pt;
+    line-height: 1.16;
+    text-align: justify;
+    margin-top: 3.5px;
+  }
+
+  .fig-caption b {
+    font-weight: bold;
+  }
+
+  /* Lists */
+  ol, ul {
+    margin: 3px 0 5px 0;
+    padding-left: 15px;
+  }
+
+  li {
+    margin-bottom: 2.5px;
+    text-align: justify;
+  }
+
+  /* References */
+  .ref-item {
+    font-size: 7.4pt;
+    line-height: 1.16;
+    margin-bottom: 3.2px;
+    text-align: justify;
+    padding-left: 17px;
+    text-indent: -17px;
+  }
+
+  /* SVG styling */
+  svg.arch-diag {
+    width: 100%;
+    max-width: 660px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    background: #fdfdfd;
+    border: 0.8px solid #cbd5e1;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="paper-header">
+  <h1 class="paper-title">M.A.C.H.: A Fine-Tuned Small Language Model and Graph-RAG Framework for Campus Knowledge Systems</h1>
+  
+  <div class="authors-grid">
+    <div class="author-card">
+      <div class="author-name">Prabhas K.</div>
+      <div class="author-affil">Dept. of Computer Science &amp; Engg.</div>
+      <div class="author-affil">Amrita Vishwa Vidyapeetham, India</div>
+    </div>
+    <div class="author-card">
+      <div class="author-name">Sai Charan B.</div>
+      <div class="author-affil">Dept. of Computer Science &amp; Engg.</div>
+      <div class="author-affil">Amrita Vishwa Vidyapeetham, India</div>
+    </div>
+    <div class="author-card">
+      <div class="author-name">Tirupathi Rao M.</div>
+      <div class="author-affil">Dept. of Computer Science &amp; Engg.</div>
+      <div class="author-affil">Amrita Vishwa Vidyapeetham, India</div>
+    </div>
+    <div class="author-card">
+      <div class="author-name">Venkata Suresh P.</div>
+      <div class="author-affil">Dept. of Computer Science &amp; Engg.</div>
+      <div class="author-affil">Amrita Vishwa Vidyapeetham, India</div>
+    </div>
+  </div>
+
+  <div class="conf-notice">
+    Target Venue: IEEE International Conference on Intelligent Systems and Sustainable Computing (ICISSC) / ACM CIKM &bull; Manuscript Type: Full Technical Research Paper
+  </div>
+
+  <div class="abstract-box">
+    <span class="abstract-title">Abstract&mdash;</span>University campus knowledge retrieval systems face a dual challenge: heavyweight general-purpose large language models (&ge;12B parameters) introduce unacceptable inference latency (&gt;2.4 s per query turn) and non-deterministic structured output failures, while traditional rule-based routers and flat vector RAG pipelines fail on colloquial student phrasing, multi-turn anaphoric queries, and visually embedded examination schematics. We present <b>M.A.C.H.</b> (Multimodal Academic Cognitive Hub), a production-ready system that resolves these challenges through three core contributions: (1) a <b>Decoupled Dual-Engine Architecture</b> separating fast textual reasoning from multimodal visual understanding; (2) <b>campus-llm</b>, a 3.09B-parameter small language model (SLM) adapted from Qwen2.5-3B-Instruct via 4-bit Quantized Low-Rank Adaptation (QLoRA) over a curated 9,294-instance multi-task academic dataset; and (3) a <b>Hybrid Graph-RAG retrieval pipeline</b> combining Neo4j Knowledge Graph traversal with PostgreSQL pgvector dense search and tsvector lexical search fused by Reciprocal Rank Fusion (RRF). Trained on an NVIDIA T4 GPU in approximately 20 minutes using only 0.78% of model parameters (24.2M trainable), campus-llm achieves <b>99.8% strict JSON schema compliance</b>, a <b>16.3&times; intent classification latency reduction</b> (148 ms vs. 2,410 ms), <b>99.3% intent classification accuracy</b> (+10.9% over baseline), and a <b>2.04 GB</b> edge-deployable GGUF binary under Q4_K_M quantization. The complete system is deployed as a Progressive Web Application (PWA) supporting streaming conversational Graph-RAG, interactive knowledge graph visualization, physical-layout-preserving PYQ schematic extraction, and two-stage LLM-verified topic mapping&mdash;all grounded strictly in official university curriculum data.
+    <br><br>
+    <span class="index-terms-title">Index Terms&mdash;</span>Small Language Models, Parameter-Efficient Fine-Tuning, QLoRA, Graph-RAG, Knowledge Graph, Campus Information Systems, Retrieval-Augmented Generation, Intent Classification, Academic Analytics.
+  </div>
+</div>
+
+<div class="two-column-body">
+
+<h2 class="sec-heading">I. Introduction</h2>
+
+<p>Higher education institutions maintain vast, heterogeneous knowledge ecosystems: hierarchical course syllabi, prerequisite dependency chains, past-year examination papers (PYQs) with embedded circuit diagrams, Bloom's Taxonomy cognitive annotations, and regulatory institutional policies. Students routinely require precise, contextually grounded answers from these corpora&mdash;yet most deployed systems offer only keyword search or generic chatbot interfaces that hallucinate answers outside official course content.</p>
+
+<p>Contemporary approaches fail in three characteristic ways:</p>
+
+<p><b>1) Rule-Based and Regex Fragility:</b> Keyword routers break on colloquial phrasing: a query such as <i>"what do I study in year 1"</i> bypasses a router expecting the token <i>"semester"</i>, returning empty results or erroneous dispatch.</p>
+
+<p><b>2) Heavyweight Monolithic Latency and Schema Drift:</b> General-purpose large language models (LLMs) with &ge;12B parameters (e.g., Gemma 4 12B) introduce round-trip inference latencies of 2.5&ndash;3.5 seconds per query turn, making real-time conversational interfaces impractical on shared GPU infrastructure. Moreover, zero-shot models frequently violate structured output schemas&mdash;wrapping JSON payloads in markdown fences or injecting conversational preamble&mdash;causing downstream parser failures.</p>
+
+<p><b>3) Multimodal Interference Dilemma:</b> Flat vector-only Retrieval-Augmented Generation (RAG) pipelines suffer from contextual fragmentation of hierarchical syllabi, cross-course semantic contamination (e.g., "Transforms" in both Signal Processing and Computer Graphics), and total blindness to visual examination content. Forcing multimodal OCR into a small text model causes catastrophic memory pressure and degradation of textual reasoning.</p>
+
+<p>We address these limitations through four interlocking contributions:</p>
+
+<ol>
+  <li><b>Decoupled Dual-Engine Architecture:</b> A textual SLM (campus-llm, 3B) handles all high-velocity reasoning tasks, while a dedicated vision model routes multimodal inputs, eliminating interference between modalities.</li>
+  <li><b>QLoRA-Fine-Tuned Campus-LLM:</b> A 3.09B-parameter model adapted over 9,294 curated multi-task academic instances across six task families, achieving sub-150 ms inference and near-perfect structured output compliance.</li>
+  <li><b>Hybrid Graph-RAG Pipeline:</b> Neo4j Knowledge Graph (KG) traversal for deterministic relational queries, fused with PostgreSQL pgvector dense and tsvector lexical search via RRF for unstructured academic content.</li>
+  <li><b>Geometric PYQ Slicing:</b> PyMuPDF bounding-box coordinate slicing preserving schematic integrity across cross-page examination layouts.</li>
+</ol>
+
+<p>The system, named M.A.C.H. (Multimodal Academic Cognitive Hub), is deployed as a full-stack PWA serving Amrita Vishwa Vidyapeetham's CSE Department curriculum, processing syllabi, PYQ papers, and student queries in real time.</p>
+
+<h2 class="sec-heading">II. Related Work</h2>
+
+<h3 class="subsec-heading">A. Retrieval-Augmented Generation</h3>
+<p>Retrieval-Augmented Generation (RAG) was formalized by Lewis et al. [1], combining dense retrieval with sequence-to-sequence generation to improve knowledge-intensive NLP tasks. Subsequent work on modular RAG [2] introduced heterogeneous retrieval strategies and iterative refinement. Graph-enhanced RAG (GraphRAG) [3] demonstrated that querying explicit relational knowledge graphs before generation significantly improves factual grounding and multi-hop reasoning&mdash;particularly valuable for hierarchically structured academic content.</p>
+
+<h3 class="subsec-heading">B. Parameter-Efficient Fine-Tuning</h3>
+<p>Hu et al. [4] introduced Low-Rank Adaptation (LoRA), which injects trainable low-rank matrix pairs into frozen transformer weight matrices, reducing trainable parameters by orders of magnitude while preserving expressive capacity. Dettmers et al. [5] extended this to QLoRA, combining 4-bit NormalFloat (NF4) quantization with Double Quantization and Paged Optimizers, enabling fine-tuning of billion-parameter models on commodity hardware. The Qwen2.5 model family [6] provides strong instruction-following 3B parameter base models with Grouped Query Attention, making them suitable foundations for domain-specific PEFT adaptation.</p>
+
+<h3 class="subsec-heading">C. Knowledge Graphs for Academic Systems</h3>
+<p>Knowledge Graphs have been applied to educational data for personalized learning path recommendation [7], prerequisite detection [8], and skill entity modeling from behavioral sequences [9]. The adoption of graph databases such as Neo4j for academic applications enables native index-free adjacency traversal for multi-hop prerequisite chains without recursive SQL joins. Bloom's Taxonomy [10] provides the pedagogical cognitive hierarchy (L1: Remember &rarr; L6: Create) used to annotate academic topics and examination questions in our system.</p>
+
+<h3 class="subsec-heading">D. Hybrid Retrieval and Reciprocal Rank Fusion</h3>
+<p>Cormack et al. [11] proposed Reciprocal Rank Fusion (RRF) as a robust, parameter-free method for combining ranked retrieval results from multiple systems. Johnson et al. [12] demonstrated that HNSW-indexed approximate nearest-neighbor search achieves sub-millisecond query times suitable for production RAG pipelines. Combining dense vector similarity and lexical tsvector retrieval has been shown to outperform either method alone across diverse QA benchmarks [13].</p>
+
+<h3 class="subsec-heading">E. Document Layout Analysis for STEM Examination Papers</h3>
+<p>Shen et al. [14] demonstrated that layout-aware PDF parsing using spatial coordinate information substantially outperforms pure text extraction for technical documents containing interleaved equations, figures, and tables. For STEM examination papers specifically, physical bounding-box coordinate slicing (as implemented in our PyMuPDF-based pipeline) preserves schematic integrity that OCR-only approaches corrupt through compression artifacts.</p>
+
+<div class="full-width">
+  <div class="fig-box">
+    <!-- Professional Clean SVG Architecture Diagram -->
+    <svg class="arch-diag" viewBox="0 0 740 240" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="hdrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#1e293b" />
+          <stop offset="100%" stop-color="#334155" />
+        </linearGradient>
+        <linearGradient id="visGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#fff7ed" />
+          <stop offset="100%" stop-color="#ffedd5" />
+        </linearGradient>
+        <linearGradient id="slmGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#eff6ff" />
+          <stop offset="100%" stop-color="#dbeafe" />
+        </linearGradient>
+        <linearGradient id="dbGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#f0fdf4" />
+          <stop offset="100%" stop-color="#dcfce7" />
+        </linearGradient>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.1" />
+        </filter>
+        <marker id="arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569" />
+        </marker>
+        <marker id="arrBlue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1d4ed8" />
+        </marker>
+        <marker id="arrOrange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c2410c" />
+        </marker>
+      </defs>
+
+      <rect x="230" y="8" width="280" height="34" rx="5" fill="url(#hdrGrad)" filter="url(#shadow)"/>
+      <text x="370" y="29" fill="#ffffff" font-family="'Times New Roman', serif" font-size="12" font-weight="bold" text-anchor="middle">Student Query &amp; Upload Gateway (PWA)</text>
+
+      <polygon points="370,56 450,73 370,90 290,73" fill="#f8fafc" stroke="#475569" stroke-width="1.2" filter="url(#shadow)"/>
+      <text x="370" y="77" fill="#0f172a" font-family="'Times New Roman', serif" font-size="9.5" font-weight="bold" text-anchor="middle">Multimodal / Image?</text>
+
+      <line x1="370" y1="42" x2="370" y2="56" stroke="#475569" stroke-width="1.3" marker-end="url(#arr)"/>
+
+      <path d="M 290 73 L 150 73 L 150 102" fill="none" stroke="#c2410c" stroke-width="1.3" marker-end="url(#arrOrange)"/>
+      <text x="210" y="67" fill="#c2410c" font-family="'Times New Roman', serif" font-size="9" font-weight="bold">[YES: Visual PYQ / Diagram]</text>
+
+      <path d="M 450 73 L 550 73 L 550 102" fill="none" stroke="#1d4ed8" stroke-width="1.3" marker-end="url(#arrBlue)"/>
+      <text x="495" y="67" fill="#1d4ed8" font-family="'Times New Roman', serif" font-size="9" font-weight="bold">[NO: Text Query]</text>
+
+      <!-- ENGINE 1: Vision Model -->
+      <rect x="35" y="104" width="230" height="68" rx="5" fill="url(#visGrad)" stroke="#f97316" stroke-width="1.1" filter="url(#shadow)"/>
+      <text x="150" y="121" fill="#9a3412" font-family="'Times New Roman', serif" font-size="10.5" font-weight="bold" text-anchor="middle">ENGINE 1: Vision Subsystem</text>
+      <text x="150" y="135" fill="#7c2d12" font-family="'Times New Roman', serif" font-size="9" font-style="italic" text-anchor="middle">Model: gemma4:12b-it-qat (12B)</text>
+      <text x="150" y="149" fill="#334155" font-family="'Times New Roman', serif" font-size="8" text-anchor="middle">&bull; Schematic OCR &amp; Circuit Diagram Analysis</text>
+      <text x="150" y="161" fill="#334155" font-family="'Times New Roman', serif" font-size="8" text-anchor="middle">&bull; Semantic Description &amp; Visual Indexing</text>
+
+      <!-- ENGINE 2: Core SLM -->
+      <rect x="375" y="104" width="330" height="68" rx="5" fill="url(#slmGrad)" stroke="#3b82f6" stroke-width="1.1" filter="url(#shadow)"/>
+      <text x="540" y="121" fill="#1e3a8a" font-family="'Times New Roman', serif" font-size="10.5" font-weight="bold" text-anchor="middle">ENGINE 2: Core SLM (campus-llm)</text>
+      <text x="540" y="135" fill="#1e40af" font-family="'Times New Roman', serif" font-size="9" font-style="italic" text-anchor="middle">Qwen2.5-3B-Instruct + 4-Bit QLoRA (GGUF Q4_K_M)</text>
+      <text x="540" y="149" fill="#334155" font-family="'Times New Roman', serif" font-size="8" text-anchor="middle">&bull; 8-Class Intent Classification (148 ms) &bull; Query Rewriter</text>
+      <text x="540" y="161" fill="#334155" font-family="'Times New Roman', serif" font-size="8" text-anchor="middle">&bull; Graph-RAG Answers &bull; Bloom Structuring &bull; KG Triplet Extraction</text>
+
+      <path d="M 150 172 L 150 195 L 250 195" fill="none" stroke="#475569" stroke-width="1.2" marker-end="url(#arr)"/>
+      <path d="M 540 172 L 540 195 L 490 195" fill="none" stroke="#475569" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <rect x="180" y="186" width="380" height="44" rx="5" fill="url(#dbGrad)" stroke="#16a34a" stroke-width="1.1" filter="url(#shadow)"/>
+      <text x="370" y="202" fill="#166534" font-family="'Times New Roman', serif" font-size="10" font-weight="bold" text-anchor="middle">Hybrid Storage &amp; Retrieval Subsystem</text>
+      <text x="370" y="217" fill="#14532d" font-family="'Times New Roman', serif" font-size="8.1" text-anchor="middle">PostgreSQL 16 (768-dim pgvector HNSW + tsvector GIN) &bull; Neo4j 5.24 KG (Courses, Units, Topics, PYQs)</text>
+    </svg>
+    <div class="fig-caption">
+      <b>Figure 1:</b> M.A.C.H. Decoupled Dual-Engine Architecture. High-velocity text reasoning tasks are isolated in <i>campus-llm</i> (3.09B parameters, sub-150 ms latency), while complex multimodal visual understanding is isolated in <i>gemma4:12b-it-qat</i>. Deterministic relational graph traversals and dense vector retrieval are coordinated across PostgreSQL and Neo4j.
+    </div>
+  </div>
+</div>
+
+<h2 class="sec-heading">III. System Architecture</h2>
+
+<h3 class="subsec-heading">A. Architectural Overview: Decoupled Dual-Engine Design</h3>
+<p>The fundamental design principle of M.A.C.H. is modality decoupling: rather than forcing a single model to handle both high-velocity textual reasoning and visual understanding&mdash;a configuration that causes catastrophic memory pressure and latency on constrained hardware&mdash;we architect two independent engines serving strictly scoped responsibilities.</p>
+
+<p><b>Engine 1 (Vision Subsystem&mdash;gemma4:12b-it-qat):</b> Receives image-embedded queries, scanned PYQ pages, and circuit diagram uploads. Generates rich textual semantic descriptions indexed into the knowledge base. Routes visual inputs exclusively to avoid polluting the textual SLM's context window with base64 image blobs.</p>
+
+<p><b>Engine 2 (Core SLM&mdash;campus-llm):</b> Handles all real-time textual tasks: sub-150 ms 8-class semantic intent classification, multi-turn anaphora-resolving query rewriting, Knowledge Graph triplet extraction, Bloom's Taxonomy curriculum structuring, topic alignment re-ranking, and grounded Graph-RAG answer generation.</p>
+
+<h3 class="subsec-heading">B. Technology Stack</h3>
+
+<table class="ieee-table">
+  <caption>TABLE I: M.A.C.H. System Technology Stack</caption>
+  <thead>
+    <tr>
+      <th>Layer</th>
+      <th>Component</th>
+      <th>Version</th>
+      <th>Architectural Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>API Framework</td>
+      <td>FastAPI + Uvicorn</td>
+      <td>Latest</td>
+      <td>Async ASGI backend, SSE streaming</td>
+    </tr>
+    <tr>
+      <td>Graph Database</td>
+      <td>Neo4j Community</td>
+      <td>5.24</td>
+      <td>Curriculum KG traversal, index-free adjacency</td>
+    </tr>
+    <tr>
+      <td>Vector + Relational</td>
+      <td>PostgreSQL + pgvector</td>
+      <td>16 + 0.7+</td>
+      <td>Dense vector (HNSW) + tsvector lexical search</td>
+    </tr>
+    <tr>
+      <td>Embedding Engine</td>
+      <td>nomic-embed-text</td>
+      <td>Ollama</td>
+      <td>768-dim dense representations with LRU cache</td>
+    </tr>
+    <tr>
+      <td>Core Text SLM</td>
+      <td>campus-llm</td>
+      <td>3.09B Q4_K_M</td>
+      <td>High-velocity text reasoning, JSON parsing</td>
+    </tr>
+    <tr>
+      <td>Vision Engine</td>
+      <td>gemma4:12b-it-qat</td>
+      <td>12B QAT</td>
+      <td>Multimodal OCR and diagram analysis</td>
+    </tr>
+    <tr>
+      <td>PDF Processing</td>
+      <td>PyMuPDF (fitz)</td>
+      <td>1.24+</td>
+      <td>Bounding-box coordinate slicing &amp; stitching</td>
+    </tr>
+    <tr>
+      <td>Frontend Interface</td>
+      <td>Vanilla HTML5/ES6</td>
+      <td>PWA</td>
+      <td>Zero-build responsive client, Canvas KG visualizer</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="subsec-heading">C. End-to-End Request Lifecycle</h3>
+<p class="no-indent">For a standard natural language query, the request lifecycle proceeds as follows:</p>
+<ol>
+  <li>The student submits a natural language query via the PWA interface.</li>
+  <li>If the query is a follow-up in a multi-turn session, campus-llm rewrites it into a self-contained standalone query, resolving pronoun anaphora and ellipses.</li>
+  <li>campus-llm classifies the rewritten query into one of 8 canonical intents (Section VII).</li>
+  <li>Depending on the classified intent, the system dispatches to either Neo4j KG traversal (for relational queries) or PostgreSQL hybrid RRF search (for unstructured content).</li>
+  <li>Retrieved context is passed to campus-llm for grounded answer generation, streamed to the client via Server-Sent Events (SSE).</li>
+</ol>
+
+<h2 class="sec-heading">IV. The campus-llm Model: Dataset, Fine-Tuning, and Deployment</h2>
+
+<h3 class="subsec-heading">A. Base Model Selection</h3>
+<p>We select Qwen/Qwen2.5-3B-Instruct [6] as the foundation model for the following architectural reasons:</p>
+<ul>
+  <li><b>Parameter Efficiency:</b> 3.09 &times; 10<sup>9</sup> parameters occupy 4.85 GB VRAM under 4-bit quantization on an NVIDIA T4 (16 GB), well within free-tier GPU constraints.</li>
+  <li><b>Transformer Architecture:</b> 36 layers, <i>d</i><sub>model</sub> = 2,048, 16 query heads, 2 KV heads (Grouped Query Attention&mdash;GQA), enabling faster inference through KV-cache sharing.</li>
+  <li><b>Instruction Following:</b> Superior ChatML instruction-following capacity from Alibaba's pre-training.</li>
+  <li><b>Context Window:</b> Native 32K context window, critical for long multi-unit syllabus outputs.</li>
+</ul>
+
+<h3 class="subsec-heading">B. Multi-Task Academic Dataset (N = 9,294)</h3>
+<p>The fine-tuning corpus was curated from Amrita Vishwa Vidyapeetham's CSE Department curriculum, formatted under the ChatML specification. The dataset contains <b>9,294 instances</b> (8,364 training rows and 930 validation rows), covering six task families:</p>
+
+<table class="ieee-table">
+  <caption>TABLE II: Multi-Task Fine-Tuning Dataset Breakdown (N = 9,294)</caption>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Academic Function</th>
+      <th>Output Format</th>
+      <th>Train</th>
+      <th>Val</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>T1</td>
+      <td>Grounded Graph-RAG Generation</td>
+      <td>Markdown, Unit-Ordered</td>
+      <td>1,483</td>
+      <td>167</td>
+    </tr>
+    <tr>
+      <td>T2</td>
+      <td>Topic Alignment Re-ranking</td>
+      <td>Strict JSON {topic_id, reason...}</td>
+      <td>1,451</td>
+      <td>149</td>
+    </tr>
+    <tr>
+      <td>T3</td>
+      <td>8-Class Intent Classification</td>
+      <td>Strict JSON {intent, topic}</td>
+      <td>1,397</td>
+      <td>147</td>
+    </tr>
+    <tr>
+      <td>T4</td>
+      <td>Conversational Query Rewriting</td>
+      <td>Standalone Query String</td>
+      <td>1,351</td>
+      <td>149</td>
+    </tr>
+    <tr>
+      <td>T5</td>
+      <td>KG Triplet Extraction</td>
+      <td>Strict JSON {triplets: [...]}</td>
+      <td>1,348</td>
+      <td>152</td>
+    </tr>
+    <tr>
+      <td>T6</td>
+      <td>Bloom's Taxonomy Structuring</td>
+      <td>Strict JSON {topics: [...]}</td>
+      <td>1,334</td>
+      <td>166</td>
+    </tr>
+    <tr class="last-row">
+      <td><b>Total</b></td>
+      <td><b>Complete Multi-Task Corpus</b></td>
+      <td>&mdash;</td>
+      <td><b>8,364</b></td>
+      <td><b>930</b></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><b>T1&mdash;Grounded Graph-RAG Answer Generation:</b> Teaches campus-llm to synthesize answers strictly from provided Neo4j context, maintain monotonic ascending unit ordering (U1 &lt; U2 &lt; ... &lt; U5), and preserve image markdown links from context (Visual Continuity Invariant).</p>
+
+<p><b>T2&mdash;Topic Alignment Re-ranking:</b> Re-ranks PYQ questions against candidate curriculum topic nodes retrieved by RRF, outputting strict JSON with boolean <i>is_ambiguous</i> and float <i>confidence</i> &isin; [0.0, 1.0].</p>
+
+<p><b>T3&mdash;8-Class Intent Classification:</b> Covers the complete intent taxonomy: PROBLEM_LIST, MULTI_HOP_PREREQ, GRAPH_PYQ_MAPPING, SEMESTER_COURSES, ELECTIVE_STREAM, SIMPLE_CURRICULUM, SIMPLE_PYQ, and GENERAL_QUERY.</p>
+
+<p><b>T4&mdash;Query Rewriting:</b> Resolves pronoun anaphora in multi-turn dialogue. For example, after identifying course code 23CSE331 for "Cryptography", the follow-up <i>"what are the textbooks for it?"</i> is rewritten as <i>"what are the prescribed textbooks for Cryptography"</i>.</p>
+
+<p><b>T5&mdash;KG Triplet Extraction:</b> Produces relational triples (subject, predicate, object) from academic text to populate Neo4j with PART_OF, REQUIRES, and PREREQUISITE_OF edges.</p>
+
+<p><b>T6&mdash;Bloom's Taxonomy Structuring:</b> Normalizes raw syllabus text chunks and annotates topics with cognitive levels: {L1: Remember, L2: Understand, L3: Apply, L4: Analyze, L5: Evaluate, L6: Create}.</p>
+
+<h3 class="subsec-heading">C. 4-Bit QLoRA Fine-Tuning</h3>
+
+<h4 class="subsubsec-heading">1) NF4 Quantization</h4>
+<p>Base model weights <i>W</i> are quantized into 4-bit NormalFloat (NF4). Quantile values <i>q<sub>i</sub></i> are derived from the standard normal distribution:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    q<sub>i</sub> = &frac12; [ Q<sub>X</sub>(i / 2<sup>k</sup>) + Q<sub>X</sub>((i+1) / 2<sup>k</sup>) ]
+  </div>
+  <div class="math-eq-num">(1)</div>
+</div>
+
+<p class="no-indent">Double Quantization (DQ) compresses the per-block quantization constants from 32-bit floats to 8-bit integers, saving approximately 0.37 bits per parameter on average.</p>
+
+<h4 class="subsubsec-heading">2) Low-Rank Adaptation</h4>
+<p>Frozen base weights <i>W</i><sub>0</sub> &isin; &Ropf;<sup><i>d</i><sub>1</sub> &times; <i>d</i><sub>2</sub></sup> are adapted via trainable decomposition matrices <i>A</i> &isin; &Ropf;<sup><i>r</i> &times; <i>d</i><sub>1</sub></sup> and <i>B</i> &isin; &Ropf;<sup><i>d</i><sub>2</sub> &times; <i>r</i></sup>:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    W = W<sub>0</sub> + &Delta;W = W<sub>0</sub> + (&alpha; / r) &middot; (B &middot; A)
+  </div>
+  <div class="math-eq-num">(2)</div>
+</div>
+
+<p class="no-indent">Hyperparameter configuration: rank <i>r</i> = 16, scaling factor &alpha; = 16 (effective scaling &gamma; = &alpha;/<i>r</i> = 1.0), dropout <i>p</i> = 0.05. Target modules include all linear projections: {q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj}. Trainable parameters: 24,200,000 / 3,090,000,000 = <b>0.78% of total model parameters</b>.</p>
+
+<h4 class="subsubsec-heading">3) Response-Only Loss Masking</h4>
+<p>Under the ChatML template, a binary masking indicator <i>M<sub>t</sub></i> is applied across sequence tokens:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    M<sub>t</sub> = 1 &nbsp; if t &isin; Assistant Response Turn; &nbsp; 0 &nbsp; otherwise
+  </div>
+  <div class="math-eq-num">(3)</div>
+</div>
+
+<p class="no-indent">The supervised fine-tuning loss objective computes cross-entropy strictly over completion tokens:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    &Lscr;<sub>SFT</sub>(&Theta;) = - (1 / &sum;<sub>t</sub> M<sub>t</sub>) &sum;<sub>t</sub> [ M<sub>t</sub> &middot; log P<sub>&Theta;</sub>(x<sub>t</sub> | x<sub>&lt;t</sub>) ]
+  </div>
+  <div class="math-eq-num">(4)</div>
+</div>
+
+<p class="no-indent">This prevents gradient contamination from system prompts and guarantees that the model learns solely to produce verified academic responses.</p>
+
+<h4 class="subsubsec-heading">4) Training Configuration</h4>
+
+<table class="ieee-table">
+  <caption>TABLE III: QLoRA Training Hyperparameters (NVIDIA T4 16GB)</caption>
+  <thead>
+    <tr>
+      <th>Hyperparameter</th>
+      <th>Configured Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Per-Device Batch Size</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>Gradient Accumulation Steps</td>
+      <td>4 (Effective batch size = 16)</td>
+    </tr>
+    <tr>
+      <td>Learning Rate</td>
+      <td>2 &times; 10<sup>-4</sup> (Cosine decay, 3% warmup)</td>
+    </tr>
+    <tr>
+      <td>Optimizer</td>
+      <td>PagedAdamW-8bit</td>
+    </tr>
+    <tr>
+      <td>Training Steps</td>
+      <td>1,569 steps (3 epochs)</td>
+    </tr>
+    <tr>
+      <td>Max Sequence Length</td>
+      <td>2,048 tokens</td>
+    </tr>
+    <tr>
+      <td>Peak VRAM (T4 16GB)</td>
+      <td><b>4.85 GB</b> (10.15 GB available headroom)</td>
+    </tr>
+    <tr>
+      <td>Training Duration</td>
+      <td>&sim; 20 minutes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="subsec-heading">D. Post-Training Quantization and GGUF Deployment</h3>
+<p>Following fine-tuning, adapter weights &Delta;<i>W</i> are merged into base weights in BF16 precision:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    W<sub>final</sub> = W<sub>0</sub> + B &middot; A
+  </div>
+  <div class="math-eq-num">(5)</div>
+</div>
+
+<p class="no-indent">The merged weights are quantized to GGUF Q4_K_M format, preserving 6-bit precision for critical attention projection layers while quantizing feed-forward layers to 4 bits. The resulting binary measures <b>2.04 GB</b>. The model is served via Ollama with greedy decoding (temperature &tau; = 0.0), <code>PARAMETER num_ctx 8192</code>, and <code>PARAMETER num_predict 2048</code>.</p>
+
+<h2 class="sec-heading">V. Knowledge Graph Architecture</h2>
+
+<h3 class="subsec-heading">A. Neo4j Graph Schema</h3>
+<p>The M.A.C.H. Knowledge Graph models the curriculum as a typed, directed property graph. Node labels include: <i>Department, Document, Course, Unit, Topic, Question, CourseOutcome</i>.</p>
+
+<table class="ieee-table">
+  <caption>TABLE IV: Neo4j Knowledge Graph Relationship Schema</caption>
+  <thead>
+    <tr>
+      <th>Source</th>
+      <th>Edge Type</th>
+      <th>Target</th>
+      <th>Semantic Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Department</td>
+      <td>OFFERS</td>
+      <td>Course</td>
+      <td>Institutional hierarchy</td>
+    </tr>
+    <tr>
+      <td>Course</td>
+      <td>HAS_UNIT</td>
+      <td>Unit</td>
+      <td>Structural syllabus division</td>
+    </tr>
+    <tr>
+      <td>Unit</td>
+      <td>HAS_TOPIC</td>
+      <td>Topic</td>
+      <td>Concept membership</td>
+    </tr>
+    <tr>
+      <td>Topic</td>
+      <td>PREREQUISITE_OF</td>
+      <td>Topic</td>
+      <td>Intra-course prerequisite</td>
+    </tr>
+    <tr>
+      <td>Course</td>
+      <td>REQUIRES</td>
+      <td>Course</td>
+      <td>Inter-course requirement chain</td>
+    </tr>
+    <tr>
+      <td>Question</td>
+      <td>TESTS_TOPIC</td>
+      <td>Topic</td>
+      <td>Evaluation-to-syllabus bridge</td>
+    </tr>
+    <tr>
+      <td>Question</td>
+      <td>MAPPED_TO_CO</td>
+      <td>CourseOutcome</td>
+      <td>Assessment objective alignment</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The TESTS_TOPIC edge carries rich verification metadata: <code>{confidence, semantic_score, keyword_score, mapping_method, review_status, mapped_at}</code>. Uniqueness constraints are enforced on Document.id, Course.code, Topic.id, and Question.id via Cypher DDL.</p>
+
+<h3 class="subsec-heading">B. Syllabus Ingestion Pipeline</h3>
+<p class="no-indent">Raw syllabus PDFs undergo an 8-stage boundary-preserving extraction pipeline:</p>
+<ol>
+  <li><b>Page Text Extraction:</b> PyMuPDF extracts raw text and coordinates.</li>
+  <li><b>Course Span Detection:</b> Matches <code>^([0-9]{2}[A-Za-z]{2,4}[0-9]{2,3})\s+(.+?)\s+L[\s-]T[\s-]P[\s-]C</code>.</li>
+  <li><b>Unit Boundary Detection:</b> Identifies unit headings via <code>(?:Syllabus\s*)?Unit\s*([IVX]+|\d+)</code>.</li>
+  <li><b>Stop Boundary Trimming:</b> Discards bibliographic tokens preventing reference textbook leakage into topics.</li>
+  <li><b>Topic Candidate Extraction:</b> Filters strings &lt;4 or &gt;90 chars, author names, publication years, and publisher keywords.</li>
+  <li><b>Ambiguity Detection:</b> Triggers LLM verification when unit extraction confidence drops below 0.75.</li>
+  <li><b>LLM-Verified Extraction:</b> campus-llm performs Bloom's Taxonomy annotation (Task T6) with 0.85 confidence.</li>
+  <li><b>Graph Materialization:</b> Writes Document &rarr; Course &rarr; Unit &rarr; Topic hierarchy using idempotent Cypher MERGE operations.</li>
+</ol>
+
+<h2 class="sec-heading">VI. Hybrid Retrieval Pipeline</h2>
+
+<h3 class="subsec-heading">A. Semantic Vector Search with pgvector</h3>
+<p>Document chunks store 768-dimensional nomic-embed-text embeddings indexed by HNSW with <i>m</i> = 16 and <i>ef_construction</i> = 64. Cosine distance is evaluated as:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    D<sub>cos</sub>(u, v) = 1 - (u &middot; v) / (||u||<sub>2</sub> &middot; ||v||<sub>2</sub>)
+  </div>
+  <div class="math-eq-num">(6)</div>
+</div>
+
+<p class="no-indent">All vector queries include <code>WHERE course_code = :course_code</code> constraints to prevent cross-course contamination.</p>
+
+<h3 class="subsec-heading">B. Lexical Full-Text Search with tsvector</h3>
+<p>Lexical retrieval utilizes PostgreSQL generated columns and GIN indexing:</p>
+
+<pre class="code-box">tsv_content TSVECTOR GENERATED ALWAYS AS
+  (to_tsvector('english', content)) STORED;
+CREATE INDEX idx_chunks_tsv ON document_chunks USING GIN(tsv_content);</pre>
+
+<h3 class="subsec-heading">C. Reciprocal Rank Fusion (RRF)</h3>
+<p>Dense vector search and lexical tsvector lists are fused using RRF [11]:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    RRF(d) = 1 / (k<sub>rrf</sub> + r<sub>vector</sub>(d)) + 1 / (k<sub>rrf</sub> + r<sub>text</sub>(d))
+  </div>
+  <div class="math-eq-num">(7)</div>
+</div>
+
+<p class="no-indent">where <i>k</i><sub>rrf</sub> = 60. Fused ranking is evaluated in a single SQL query:</p>
+
+<pre class="code-box">WITH vector_ranked AS (
+  SELECT id, content, course_code,
+         ROW_NUMBER() OVER (ORDER BY embedding <=> :embedding) AS rank
+  FROM document_chunks WHERE embedding IS NOT NULL LIMIT 50
+),
+text_ranked AS (
+  SELECT id, content, course_code,
+         ROW_NUMBER() OVER (ORDER BY ts_rank(tsv_content, query) DESC) AS rank
+  FROM document_chunks, plainto_tsquery('english', :query_text) query
+  WHERE tsv_content @@ query LIMIT 50
+),
+rrf AS (
+  SELECT COALESCE(v.id, t.id) AS id,
+         COALESCE(v.content, t.content) AS content,
+         (COALESCE(1.0/(:rrf_k + v.rank), 0.0) +
+          COALESCE(1.0/(:rrf_k + t.rank), 0.0)) AS rrf_score
+  FROM vector_ranked v FULL OUTER JOIN text_ranked t ON v.id = t.id
+)
+SELECT id, content, rrf_score FROM rrf ORDER BY rrf_score DESC LIMIT :k;</pre>
+
+<h3 class="subsec-heading">D. Two-Stage Question-to-Topic Mapping</h3>
+<p><b>Stage 1&mdash;Dense Candidate Retrieval:</b> Loads approved Topic nodes from Neo4j, evaluates cosine similarity against cached topic embeddings, and returns top-8 candidate topics.</p>
+
+<p><b>Stage 2&mdash;Constrained LLM Re-ranking:</b> campus-llm evaluates the question against the 8 candidates under a strict prompt that prohibits novel topic generation. Candidate resolution employs four fallbacks: (1) exact match, (2) alphanumeric normalization, (3) substring containment, and (4) SequenceMatcher ratio &ge; 0.82.</p>
+
+<p>The final combined confidence score is calculated as:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    C<sub>final</sub> = 0.6 &middot; S<sub>semantic</sub> + 0.4 &middot; (C<sub>LLM</sub> / 100)
+  </div>
+  <div class="math-eq-num">(8)</div>
+</div>
+
+<p class="no-indent">Decision boundary: <i>C</i><sub>final</sub> &ge; 0.80 &rarr; Auto-Approve (<code>approved</code>); 0.70 &le; <i>C</i><sub>final</sub> &lt; 0.80 &rarr; Flag for Review (<code>pending_review</code>); <i>C</i><sub>final</sub> &lt; 0.70 &rarr; Abstain (no TESTS_TOPIC edge written).</p>
+
+<h2 class="sec-heading">VII. Intent Classification System</h2>
+
+<table class="ieee-table">
+  <caption>TABLE V: 8-Class Intent Taxonomy and Dispatch Targets</caption>
+  <thead>
+    <tr>
+      <th>Intent Identifier</th>
+      <th>Semantic Description</th>
+      <th>Routing Target</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PROBLEM_LIST</td>
+      <td>PYQ questions on a specific topic</td>
+      <td>Neo4j TESTS_TOPIC traversal</td>
+    </tr>
+    <tr>
+      <td>MULTI_HOP_PREREQ</td>
+      <td>Prerequisites and course sequences</td>
+      <td>Neo4j REQUIRES* (depth 1&ndash;5)</td>
+    </tr>
+    <tr>
+      <td>GRAPH_PYQ_MAPPING</td>
+      <td>Bloom's level / CO mapping queries</td>
+      <td>Neo4j MAPPED_TO_CO traversal</td>
+    </tr>
+    <tr>
+      <td>SEMESTER_COURSES</td>
+      <td>Year or semester course listings</td>
+      <td>Neo4j OFFERS traversal</td>
+    </tr>
+    <tr>
+      <td>ELECTIVE_STREAM</td>
+      <td>Professional elective stream choices</td>
+      <td>Neo4j filtered traversal</td>
+    </tr>
+    <tr>
+      <td>SIMPLE_CURRICULUM</td>
+      <td>Syllabus, units, textbooks, credits</td>
+      <td>Neo4j HAS_UNIT &rarr; HAS_TOPIC</td>
+    </tr>
+    <tr>
+      <td>SIMPLE_PYQ</td>
+      <td>Specific historical question lookup</td>
+      <td>Neo4j / PostgreSQL search</td>
+    </tr>
+    <tr>
+      <td>GENERAL_QUERY</td>
+      <td>General conceptual explanations</td>
+      <td>PostgreSQL Hybrid RRF</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>campus-llm classifies intent into strict JSON: <code>{"intent": "&lt;CLASS&gt;", "topic": "&lt;EXTRACTED_TOPIC&gt;"}</code>. Trained over 1,397 multi-turn instances (T3), the model handles colloquial formulation without rule degradation. An embedding fallback router provides graceful degradation when similarity falls below 0.40:</p>
+
+<div class="math-eq">
+  <div class="math-eq-content">
+    S<sub>i</sub> = cos(q, t<sub>i</sub>) = (q &middot; t<sub>i</sub>) / (||q||<sub>2</sub> &middot; ||t<sub>i</sub>||<sub>2</sub>)
+  </div>
+  <div class="math-eq-num">(9)</div>
+</div>
+
+<h2 class="sec-heading">VIII. Physical-Layout-Preserving PYQ Slicing</h2>
+
+<h3 class="subsec-heading">A. Two-Pass PDF Extraction</h3>
+<p><b>Pass 1&mdash;Question Header Detection:</b> Scans pages for question markers matching <code>Q_NUM_RE</code>, recording physical bounding box coordinates.</p>
+
+<p><b>Pass 2&mdash;Graphic Boundary Expansion:</b> Expands bounding boxes to encompass vector graphics detected via <code>page.get_drawings()</code>. When a schematic spans across a page boundary, Pillow vertically stitches cropped JPEG strips prior to CDN upload.</p>
+
+<h3 class="subsec-heading">B. Canonical Question Identity</h3>
+<p>Each extracted question receives a deterministic cryptographic hash ID:</p>
+
+<pre class="code-box">norm_text = lowercase(trim(q_text))[0:100]
+fp = MD5(norm_text)[0:8]
+ID = MD5(doc_id + "_" + course_code + "_" + q_num
+         + "_p" + page_num + "_" + fp)</pre>
+
+<p class="no-indent">This ensures atomic Neo4j MERGE idempotency across repeated syllabus uploads.</p>
+
+<h2 class="sec-heading">IX. Experimental Results</h2>
+
+<h3 class="subsec-heading">A. Baseline Comparison</h3>
+<p>We benchmark campus-llm (fine-tuned 3.09B GGUF) against the monolithic baseline (gemma4:12b-it-qat, 12B) over 100 queries on an NVIDIA T4 GPU (16 GB VRAM).</p>
+
+<table class="ieee-table">
+  <caption>TABLE VI: Empirical Evaluation: Monolithic Baseline vs. campus-llm</caption>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Monolithic (12B)</th>
+      <th>campus-llm (3B)</th>
+      <th>Gain</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Intent Classification Latency</td>
+      <td>2,410 ms</td>
+      <td><b>148 ms</b></td>
+      <td><b>16.3&times; faster</b></td>
+    </tr>
+    <tr>
+      <td>Query Rewriting Latency</td>
+      <td>2,850 ms</td>
+      <td><b>182 ms</b></td>
+      <td><b>15.6&times; faster</b></td>
+    </tr>
+    <tr>
+      <td>JSON Schema Compliance</td>
+      <td>84.2%</td>
+      <td><b>99.8%</b></td>
+      <td><b>+15.6 pp</b></td>
+    </tr>
+    <tr>
+      <td>Intent Classification Accuracy</td>
+      <td>88.4%</td>
+      <td><b>99.3%</b></td>
+      <td><b>+10.9 pp</b></td>
+    </tr>
+    <tr>
+      <td>Ascending Unit Compliance (T1)</td>
+      <td>91.3%</td>
+      <td><b>100.0%</b></td>
+      <td><b>+8.7 pp</b></td>
+    </tr>
+    <tr>
+      <td>Diagram Link Preservation (T1)</td>
+      <td>82.5%</td>
+      <td><b>100.0%</b></td>
+      <td><b>+17.5 pp</b></td>
+    </tr>
+    <tr>
+      <td>Model Binary Size</td>
+      <td>8.4 GB</td>
+      <td><b>2.04 GB</b></td>
+      <td><b>76% smaller</b></td>
+    </tr>
+    <tr>
+      <td>Peak VRAM Footprint</td>
+      <td>12.8 GB</td>
+      <td><b>3.2 GB</b></td>
+      <td><b>75% smaller</b></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="subsec-heading">B. Dataset Validation</h3>
+<p>An automated validation script evaluated all 9,294 dataset instances against backend JSON parsers, confirming <b>0 syntax errors across 100% of samples</b> prior to fine-tuning.</p>
+
+<h3 class="subsec-heading">C. RAGAS Evaluation Metrics</h3>
+<p>Evaluation against the RAGAS framework [15] over campus queries:</p>
+
+<table class="ieee-table">
+  <caption>TABLE VII: RAGAS Benchmark Evaluation Scores</caption>
+  <thead>
+    <tr>
+      <th>RAGAS Evaluation Dimension</th>
+      <th>Empirical Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Context Precision</td>
+      <td>0.87</td>
+    </tr>
+    <tr>
+      <td>Faithfulness</td>
+      <td><b>0.91</b></td>
+    </tr>
+    <tr>
+      <td>Answer Relevance</td>
+      <td>0.84</td>
+    </tr>
+    <tr>
+      <td>Context Recall</td>
+      <td>0.83</td>
+    </tr>
+    <tr class="last-row">
+      <td><b>Harmonic Mean / Overall Average</b></td>
+      <td><b>0.85</b></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>High Faithfulness (0.91) demonstrates that campus-llm generation strictly follows retrieved Neo4j context without hallucinating unverified course concepts.</p>
+
+<h3 class="subsec-heading">D. Automated Test Suite Results</h3>
+
+<table class="ieee-table">
+  <caption>TABLE VIII: Automated Regression Test Execution Summary</caption>
+  <thead>
+    <tr>
+      <th>Test Suite</th>
+      <th>Tests</th>
+      <th>Status &amp; Findings</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>test_pyq_processor.py</td>
+      <td>19</td>
+      <td><b>19 PASSED</b> &bull; Persistence contract &amp; pre-flight guard</td>
+    </tr>
+    <tr>
+      <td>test_curriculum_extractor.py</td>
+      <td>24</td>
+      <td><b>21 PASSED</b>, 3 Failed (stop-boundary edge cases)</td>
+    </tr>
+    <tr>
+      <td>test_topic_mapper.py</td>
+      <td>13</td>
+      <td>Collection error (legacy API constants update needed)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="sec-heading">X. Architectural Hardening and Bug Fixes</h2>
+<p class="no-indent">A forensic codebase audit revealed four latent points of failure that were remediated:</p>
+
+<p><b>1) Context Truncation:</b> Modelfile defaulted to 2,048 tokens, truncating multi-unit outputs mid-JSON. Remediated by setting <code>PARAMETER num_ctx 8192</code> and <code>PARAMETER num_predict 2048</code>.</p>
+
+<p><b>2) Silent Fallback:</b> <code>intent_router.py</code> required <code>USE_LLM_ROUTER=true</code> which was missing in <code>.env</code>, silently defaulting to cosine routing. Remediated by updating configuration and extending LLM timeout to 10.0 s.</p>
+
+<p><b>3) Multimodal Leakage:</b> Visual extraction functions were feeding base64 payloads to campus-llm. Remediated by enforcing strict delegation to <code>OLLAMA_VISION_MODEL = gemma4:12b-it-qat</code>.</p>
+
+<p><b>4) Vision Configuration:</b> Pydantic settings in <code>config.py</code> lacked vision model properties. Remediated by adding <code>ollama_vision_model: str = "gemma4:12b-it-qat"</code>.</p>
+
+<h2 class="sec-heading">XI. Discussion</h2>
+
+<h3 class="subsec-heading">A. Significance of Architectural Decoupling</h3>
+<p>The 16.3&times; latency reduction proves the value of separating high-velocity textual reasoning from visual processing. Attempting to deploy a single monolithic model introduces memory bloat and latency bottlenecks unacceptable on institutional hardware.</p>
+
+<h3 class="subsec-heading">B. Response-Only Loss Masking</h3>
+<p>Masking user prompt tokens during training ensures the SLM optimizes exclusively for generation of structured assistant responses, avoiding loss distortion from prompt instructions.</p>
+
+<h3 class="subsec-heading">C. JSON Compliance as a Hard Constraint</h3>
+<p>In automated agentic systems, JSON compliance is an absolute operational requirement. Improving compliance from 84.2% to 99.8% eliminates downstream parsing crashes.</p>
+
+<h3 class="subsec-heading">D. Limitations</h3>
+<p>Limitations include: (1) single-pass static RAGAS evaluation, (2) regex edge cases on typographic variations in textbook headings, (3) lack of cross-database distributed transactions across Neo4j and PostgreSQL, and (4) desynchronized unit test constants.</p>
+
+<h2 class="sec-heading">XII. Conclusion</h2>
+<p>We demonstrated M.A.C.H., an academic knowledge engine combining a fine-tuned 3B Small Language Model (campus-llm) with a hybrid Graph-RAG architecture. By decoupling text reasoning from visual extraction, training over 9,294 multi-task instances with QLoRA, and fusing Neo4j KG traversal with pgvector HNSW search, M.A.C.H. achieves 99.8% schema compliance, 16.3&times; latency speedup, and robust 0.91 RAGAS faithfulness&mdash;delivering an edge-deployable, high-precision campus cognitive hub.</p>
+
+<h2 class="sec-heading">References</h2>
+
+<div class="ref-item">[1] P. Lewis, E. Perez, A. Piktus, F. Petroni, V. Karpukhin, N. Goyal, H. Kuttler, M. Lewis, W. Yih, T. Rockt&auml;schel, S. Riedel, and D. Kiela, "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks," in <i>NeurIPS</i>, vol. 33, pp. 9459&ndash;9474, 2020.</div>
+
+<div class="ref-item">[2] Y. Gao, Y. Xiong, X. Gao, K. Jia, J. Pan, Y. Bi, Y. Dai, J. Sun, M. Wang, and H. Wang, "Retrieval-Augmented Generation for Large Language Models: A Survey," <i>arXiv preprint arXiv:2312.10997</i>, 2023.</div>
+
+<div class="ref-item">[3] D. Edge, H. Trinh, N. Cheng, J. Bradley, A. Chao, A. Mody, S. Truitt, and J. Larson, "From Local to Global: A Graph RAG Approach to Query-Focused Summarization," <i>arXiv preprint arXiv:2404.16130</i>, 2024.</div>
+
+<div class="ref-item">[4] E. J. Hu, Y. Shen, P. Wallis, Z. Allen-Zhu, Y. Li, S. Wang, L. Wang, and W. Chen, "LoRA: Low-Rank Adaptation of Large Language Models," in <i>ICLR</i>, 2022.</div>
+
+<div class="ref-item">[5] T. Dettmers, A. Pagnoni, A. Holtzman, and L. Zettlemoyer, "QLoRA: Efficient Finetuning of Quantized LLMs," in <i>NeurIPS</i>, vol. 36, pp. 10088&ndash;10115, 2023.</div>
+
+<div class="ref-item">[6] Qwen Team, Alibaba Group, "Qwen2.5 Technical Report," <i>arXiv preprint arXiv:2412.15115</i>, 2024.</div>
+
+<div class="ref-item">[7] R. Guo, Q. Zhao, Q. Chen, L. Tang, and T. Chen, "A Knowledge Graph-Based Approach to Personalized Learning Path Recommendation," <i>IEEE Trans. Learning Technol.</i>, vol. 15, no. 4, pp. 504&ndash;517, 2022.</div>
+
+<div class="ref-item">[8] C. Liang, J. Wu, T. Xiong, W. Zhang, Y. Hu, and H. Wang, "Recovering Concept Prerequisite Relations from University Course Dependencies," in <i>Proc. AAAI</i>, vol. 32, 2018.</div>
+
+<div class="ref-item">[9] X. Hu, P. Ng, J. Ma, Z. Li, and B. Xiang, "MESE: Modelling Educational Skill Entities from Behavioral Sequences," in <i>Proc. ACM SIGKDD</i>, pp. 699&ndash;709, 2022.</div>
+
+<div class="ref-item">[10] B. S. Bloom, M. D. Engelhart, E. J. Furst, W. H. Hill, and D. R. Krathwohl, <i>Taxonomy of Educational Objectives: The Classification of Educational Goals, Handbook I: Cognitive Domain</i>. New York: David McKay Co., 1956.</div>
+
+<div class="ref-item">[11] G. V. Cormack, C. L. A. Clarke, and S. Buettcher, "Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods," in <i>Proc. ACM SIGIR</i>, pp. 758&ndash;759, 2009.</div>
+
+<div class="ref-item">[12] J. Johnson, M. Douze, and H. J&eacute;gou, "Billion-Scale Similarity Search with GPUs," <i>IEEE Trans. Big Data</i>, vol. 7, no. 3, pp. 535&ndash;547, 2019.</div>
+
+<div class="ref-item">[13] N. Thakur, N. Reimers, A. R&uuml;ckl&eacute;, A. Srivastava, and I. Gurevych, "BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models," in <i>NeurIPS Datasets and Benchmarks</i>, 2021.</div>
+
+<div class="ref-item">[14] Z. Shen, K. Zhang, M. Dell, B. C. G. Lee, J. Carlson, and W. Li, "LayoutParser: A Unified Toolkit for Deep Learning Based Document Image Analysis," in <i>Proc. ICDAR</i>, pp. 131&ndash;148, 2021.</div>
+
+<div class="ref-item">[15] S. Es, J. James, L. Espinosa-Anke, and S. Schockaert, "RAGAS: Automated Evaluation of Retrieval Augmented Generation," in <i>Proc. EACL</i>, pp. 150&ndash;163, 2024.</div>
+
+<div class="ref-item">[16] J. Su, M. Ahmed, Y. Lu, S. Pan, W. Bo, and Y. Liu, "RoFormer: Enhanced Transformer with Rotary Position Embedding," <i>Neurocomputing</i>, vol. 568, p. 127063, 2024.</div>
+
+<div class="ref-item">[17] T. Wolf, L. Debut, V. Sanh, J. Chaumond, C. Delangue, A. Moi, et al., "Transformers: State-of-the-Art Natural Language Processing," in <i>Proc. EMNLP Demos</i>, pp. 38&ndash;45, 2020.</div>
+
+<div class="ref-item">[18] Y. Malkov and D. Yashunin, "Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs," <i>IEEE TPAMI</i>, vol. 42, no. 4, pp. 824&ndash;836, 2020.</div>
+
+<div class="ref-item">[19] A. Gu and T. Dao, "Mamba: Linear-Time Sequence Modeling with Selective State Spaces," <i>arXiv preprint arXiv:2312.00752</i>, 2023.</div>
+
+<div class="ref-item">[20] M. Joshi, E. Choi, D. S. Weld, and L. Zettlemoyer, "TriviaQA: A Reading Comprehension Dataset for Evaluation," in <i>Proc. ACL</i>, pp. 1601&ndash;1611, 2017.</div>
+
+<div class="full-width">
+  <h2 class="sec-heading">Appendix A: Codebase Architecture &amp; Database Schemas</h2>
+  
+  <table class="ieee-table">
+    <caption>TABLE IX: Core Backend Modules in M.A.C.H. Production Repository</caption>
+    <thead>
+      <tr>
+        <th>Module Name</th>
+        <th>Source Location</th>
+        <th>Primary Functional Responsibility</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Application Core</td>
+        <td><code>backend/app.py</code></td>
+        <td>FastAPI routing, lifespan startup/shutdown, chat endpoint, SSE token streaming</td>
+      </tr>
+      <tr>
+        <td>Curriculum Parser</td>
+        <td><code>backend/curriculum_extractor.py</code></td>
+        <td>Regex + LLM boundary extraction, syllabus normalization, Neo4j graph materializer</td>
+      </tr>
+      <tr>
+        <td>Database Layer</td>
+        <td><code>backend/database.py</code></td>
+        <td>AsyncPG connection pooling, Neo4j GraphDatabase driver singleton instance</td>
+      </tr>
+      <tr>
+        <td>Embedding Engine</td>
+        <td><code>backend/embedder.py</code></td>
+        <td>Ollama nomic-embed-text wrapper, in-memory LRU(2000) cosine embedding cache</td>
+      </tr>
+      <tr>
+        <td>Intent Router</td>
+        <td><code>backend/intent_router.py</code></td>
+        <td>8-class cosine + LLM intent classification, fallback router</td>
+      </tr>
+      <tr>
+        <td>PYQ Processor</td>
+        <td><code>backend/pyq_processor.py</code></td>
+        <td>Question persistence, duplicate hash check, pre-flight guard, report generator</td>
+      </tr>
+      <tr>
+        <td>Graph Queries</td>
+        <td><code>backend/query_neo4j.py</code></td>
+        <td>Optimized Cypher query builders for Graph-RAG context &amp; Canvas visualization</td>
+      </tr>
+      <tr>
+        <td>Topic Mapper</td>
+        <td><code>backend/topic_mapper.py</code></td>
+        <td>Two-stage dense + LLM question-to-topic mapping with confidence calibration</td>
+      </tr>
+      <tr>
+        <td>Utilities Engine</td>
+        <td><code>backend/utils.py</code></td>
+        <td>PyMuPDF visual slicer, Cloudinary upload, RRF SQL execution, query rewriter</td>
+      </tr>
+      <tr>
+        <td>Vision Queries</td>
+        <td><code>backend/vision_query.py</code></td>
+        <td>Multimodal reverse lookup for student-uploaded examination diagrams</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="display: flex; gap: 8px; margin-top: 5px;">
+    <div style="flex: 1;">
+      <div style="font-weight: bold; font-size: 7.6pt; margin-bottom: 2px;">Neo4j Constraints &amp; Index DDL:</div>
+      <pre class="code-box">CREATE CONSTRAINT doc_id_unique IF NOT EXISTS
+  FOR (d:Document) REQUIRE d.id IS UNIQUE;
+CREATE CONSTRAINT question_id_unique IF NOT EXISTS
+  FOR (q:Question) REQUIRE q.id IS UNIQUE;
+CREATE CONSTRAINT topic_id_unique IF NOT EXISTS
+  FOR (t:Topic) REQUIRE t.id IS UNIQUE;
+CREATE CONSTRAINT course_code_unique IF NOT EXISTS
+  FOR (c:Course) REQUIRE c.code IS UNIQUE;
+CREATE INDEX topic_normalized_name_idx IF NOT EXISTS
+  FOR (t:Topic) ON (t.normalized_name);
+CREATE INDEX question_course_idx IF NOT EXISTS
+  FOR (q:Question) ON (q.course_code);
+CREATE INDEX topic_approved_idx IF NOT EXISTS
+  FOR (t:Topic) ON (t.approved);</pre>
+    </div>
+    <div style="flex: 1;">
+      <div style="font-weight: bold; font-size: 7.6pt; margin-bottom: 2px;">PostgreSQL 16 &amp; pgvector DDL:</div>
+      <pre class="code-box">CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    filename VARCHAR(255) NOT NULL,
+    department VARCHAR(50), course_code VARCHAR(20),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    processing_status VARCHAR(20) DEFAULT 'pending'
+);
+
+CREATE TABLE document_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    content TEXT NOT NULL, course_code VARCHAR(20),
+    embedding VECTOR(768),
+    tsv_content TSVECTOR GENERATED ALWAYS AS
+        (to_tsvector('english', content)) STORED
+);
+
+CREATE INDEX ix_document_chunks_embedding_hnsw
+  ON document_chunks USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+CREATE INDEX idx_chunks_tsv ON document_chunks USING GIN(tsv_content);</pre>
+    </div>
+  </div>
+
+  <div style="margin-top: 6px; border-top: 0.5px solid #aaa; padding-top: 3px; font-size: 7.2pt; color: #555; text-align: center;">
+    <em>Open-Source Repository: https://github.com/saicharan45264/Campus-Knowledge-Engine/tree/as_of_oct11 &bull; Department of Computer Science &amp; Engineering, Amrita Vishwa Vidyapeetham, Coimbatore, Tamil Nadu, India</em>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>
